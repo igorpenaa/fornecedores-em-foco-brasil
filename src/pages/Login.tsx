@@ -28,33 +28,34 @@ export default function Login() {
 
         <Card className="w-full">
           <CardHeader>
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <Tabs defaultValue={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="login">Entrar</TabsTrigger>
                 <TabsTrigger value="register">Cadastrar</TabsTrigger>
               </TabsList>
+            
+              <CardContent>
+                <TabsContent value="login" className="mt-0">
+                  <CardDescription className="mb-4">
+                    Entre com suas credenciais para acessar o sistema
+                  </CardDescription>
+                  <LoginForm />
+                  <div className="mt-4 text-center text-sm">
+                    Credenciais de teste:<br />
+                    <span className="font-medium">Master:</span> master@example.com / senha123<br />
+                    <span className="font-medium">Admin:</span> admin@example.com / senha123<br />
+                    <span className="font-medium">Usuário:</span> user@example.com / senha123
+                  </div>
+                </TabsContent>
+                <TabsContent value="register" className="mt-0">
+                  <CardDescription className="mb-4">
+                    Crie sua conta para acessar o sistema
+                  </CardDescription>
+                  <RegisterForm />
+                </TabsContent>
+              </CardContent>
             </Tabs>
           </CardHeader>
-          <CardContent>
-            <TabsContent value="login" className="mt-0">
-              <CardDescription className="mb-4">
-                Entre com suas credenciais para acessar o sistema
-              </CardDescription>
-              <LoginForm />
-              <div className="mt-4 text-center text-sm">
-                Credenciais de teste:<br />
-                <span className="font-medium">Master:</span> master@example.com / senha123<br />
-                <span className="font-medium">Admin:</span> admin@example.com / senha123<br />
-                <span className="font-medium">Usuário:</span> user@example.com / senha123
-              </div>
-            </TabsContent>
-            <TabsContent value="register" className="mt-0">
-              <CardDescription className="mb-4">
-                Crie sua conta para acessar o sistema
-              </CardDescription>
-              <RegisterForm />
-            </TabsContent>
-          </CardContent>
           <CardFooter className="flex flex-col space-y-4">
             <div className="text-center text-sm text-muted-foreground">
               Ao continuar, você concorda com nossos{" "}
