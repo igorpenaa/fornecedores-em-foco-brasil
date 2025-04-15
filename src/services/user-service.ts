@@ -185,5 +185,18 @@ export const authService = {
       id: userDoc.id,
       ...userDoc.data()
     } as User;
+  },
+
+  // Adicionar método updateUser para o authService
+  updateUser: async (userId: string, userData: Partial<User>) => {
+    // Atualiza os dados do usuário no Firestore
+    await updateDoc(doc(db, USERS_COLLECTION, userId), userData);
+    
+    // Se o nome for atualizado, também atualiza no Firebase Auth
+    if (userData.name && auth.currentUser && auth.currentUser.uid === userId) {
+      await updateProfile(auth.currentUser, { displayName: userData.name });
+    }
+    
+    return { id: userId, ...userData };
   }
 };
