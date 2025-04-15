@@ -110,7 +110,7 @@ export default function Dashboard() {
           <CardContent>
             <div className="space-y-4">
               {categories.map(category => {
-                const count = suppliers.filter(s => s.categoryId === category.id).length;
+                const count = suppliers.filter(s => s.categoryIds.includes(category.id)).length;
                 const percentage = suppliers.length > 0 
                   ? Math.round((count / suppliers.length) * 100) 
                   : 0;
@@ -144,7 +144,10 @@ export default function Dashboard() {
           <CardContent>
             <div className="space-y-8">
               {suppliers.slice(0, 3).map(supplier => {
-                const category = categories.find(c => c.id === supplier.categoryId);
+                // Get first category for display purposes
+                const categoryId = supplier.categoryIds && supplier.categoryIds.length > 0 ? 
+                  supplier.categoryIds[0] : undefined;
+                const category = categoryId ? categories.find(c => c.id === categoryId) : undefined;
                 
                 return (
                   <div key={supplier.id} className="flex items-center">

@@ -38,7 +38,7 @@ export default function Suppliers() {
     // Filtrar por categoria
     if (selectedCategory) {
       result = result.filter(
-        (supplier) => supplier.categoryId === selectedCategory
+        (supplier) => supplier.categoryIds.includes(selectedCategory)
       );
     }
 

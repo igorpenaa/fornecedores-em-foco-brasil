@@ -27,8 +27,9 @@ export function SupplierCard({ supplier }: SupplierCardProps) {
   const { getCategory, deleteSupplier } = useData();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   
-  // Get all categories for this supplier
-  const categories = supplier.categoryIds.map(id => getCategory(id)).filter(Boolean);
+  // Get all categories for this supplier - with null check to prevent the "map of undefined" error
+  const categoryIds = supplier.categoryIds || [];
+  const categories = categoryIds.map(id => getCategory(id)).filter(Boolean);
 
   const openWhatsApp = () => {
     // Limpar o número de telefone (manter apenas dígitos)
