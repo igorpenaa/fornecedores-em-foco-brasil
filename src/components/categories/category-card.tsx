@@ -1,4 +1,3 @@
-
 import { Edit, Trash2 } from "lucide-react";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,7 +16,7 @@ export function CategoryCard({ category, onEdit }: CategoryCardProps) {
   const { hasPermission } = useAuth();
   
   // Contar quantos fornecedores existem nesta categoria
-  const supplierCount = suppliers.filter(s => s.categoryId === category.id).length;
+  const supplierCount = suppliers.filter(s => s.categoryIds.includes(category.id)).length;
   
   // Formatar data de atualização
   const formattedDate = new Date(category.updatedAt).toLocaleDateString('pt-BR');

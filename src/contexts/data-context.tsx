@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { Category, Supplier } from "@/types";
 import { useAuth } from "./auth-context";
@@ -60,7 +59,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
   }, [user]);
 
-  // Funções para categorias
   const addCategory = async (category: Omit<Category, "id" | "createdAt" | "updatedAt">) => {
     try {
       const newCategory = await categoryService.addCategory(category);
@@ -102,8 +100,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   };
 
   const deleteCategory = async (id: string) => {
-    // Verificar se há fornecedores com esta categoria
-    const supplierWithCategory = suppliers.find(s => s.categoryId === id);
+    const supplierWithCategory = suppliers.find(s => s.categoryIds.includes(id));
     if (supplierWithCategory) {
       toast({
         variant: "destructive",
@@ -134,7 +131,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const uploadCategoryImage = async (id: string, file: File) => {
     try {
       const downloadURL = await categoryService.uploadCategoryImage(id, file);
-      // Atualizar a categoria no estado
       setCategories(prev => 
         prev.map(c => c.id === id ? { ...c, image: downloadURL } : c)
       );
@@ -154,7 +150,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return categories.find(c => c.id === id);
   };
 
-  // Funções para fornecedores
   const addSupplier = async (supplier: Omit<Supplier, "id" | "createdAt" | "updatedAt">) => {
     try {
       const newSupplier = await supplierService.addSupplier(supplier);
@@ -217,7 +212,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const uploadSupplierImage = async (id: string, file: File) => {
     try {
       const downloadURL = await supplierService.uploadSupplierImage(id, file);
-      // Atualizar o fornecedor no estado
       setSuppliers(prev => 
         prev.map(s => s.id === id ? { ...s, image: downloadURL } : s)
       );
@@ -239,7 +233,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const filterSuppliersByCategory = (categoryId: string | null) => {
     if (!categoryId) return suppliers;
-    return suppliers.filter(s => s.categoryId === categoryId);
+    return suppliers.filter(s => s.categoryIds.includes(categoryId));
   };
 
   const refreshData = async () => {
