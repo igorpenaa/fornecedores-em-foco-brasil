@@ -52,13 +52,7 @@ export default function SupplierForm() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Verificar permissão
-  if (!hasPermission(["master", "admin"])) {
-    navigate("/dashboard");
-    return null;
-  }
-
+  
   // Obter fornecedor por ID (se for edição)
   const supplier = id ? getSupplier(id) : null;
 
@@ -73,6 +67,13 @@ export default function SupplierForm() {
       image: supplier?.image || "",
     },
   });
+
+  // Verificar permissão - Movido para um useEffect
+  useEffect(() => {
+    if (!hasPermission(["master", "admin"])) {
+      navigate("/dashboard");
+    }
+  }, [hasPermission, navigate]);
 
   // Atualizar formulário quando o fornecedor mudar
   useEffect(() => {
@@ -129,6 +130,12 @@ export default function SupplierForm() {
       setIsSubmitting(false);
     }
   };
+
+  // Se não tiver permissão, o useEffect irá redirecionar
+  // Este retorno condicional vem depois de todos os hooks, mantendo a ordem consistente
+  if (!hasPermission(["master", "admin"])) {
+    return null;
+  }
 
   return (
     <AppLayout
