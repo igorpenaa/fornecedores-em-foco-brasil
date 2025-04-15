@@ -1,42 +1,45 @@
+
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
-  BarChart3,
   Boxes,
   ChevronLeft,
   ChevronRight,
   Home,
-  ListFilter,
+  LayoutGrid,
   LogOut,
   Menu,
+  Moon,
   Package,
   UserCircle,
   Users,
-  Heart
+  Heart,
+  UsersRound
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { useAuth } from "@/contexts/auth-context";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { useAuth } from "@/contexts/auth-context";
+import { UserRole } from "@/types";
 
 interface SidebarLinkProps {
   href: string;
   icon: React.ElementType;
   title: string;
   active?: boolean;
-  onClick?: () => void;
-  permissionLevel?: ("master" | "admin" | "user")[];
+  permissionLevel?: UserRole[];
+}
+
+export interface SidebarProps {
+  collapsed: boolean;
+  setCollapsed: (collapsed: boolean) => void;
 }
 
 function SidebarLink({
   href,
   icon: Icon,
   title,
-  active = false,
-  onClick,
+  active,
   permissionLevel,
 }: SidebarLinkProps) {
   const { hasPermission } = useAuth();
@@ -48,34 +51,26 @@ function SidebarLink({
   return (
     <Link
       to={href}
-      onClick={onClick}
-      className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-all ${
+      className={`flex items-center gap-2 rounded-lg px-3 py-2 text-base transition-all hover:text-primary ${
         active
-          ? "bg-primary text-primary-foreground"
-          : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+          ? "bg-muted font-medium text-primary"
+          : "text-muted-foreground"
       }`}
     >
-      <Icon className="h-5 w-5" />
+      <Icon className="h-4 w-4" />
       <span>{title}</span>
     </Link>
   );
 }
 
-export function Sidebar({ 
-  className = "",
-  defaultCollapsed = false 
-}: { 
-  className?: string;
-  defaultCollapsed?: boolean;
-}) {
-  const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
+export function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
   const location = useLocation();
   const { user, logout } = useAuth();
 
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth < 768) {
-        setIsCollapsed(true);
+        setCollapsed(true);
       }
     };
 
@@ -83,126 +78,170 @@ export function Sidebar({
 
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
-  }, []);
+  }, [setCollapsed]);
 
   return (
     <div
-      className={`relative flex h-screen flex-col border-r bg-background transition-all ${
-        isCollapsed ? "w-[70px]" : "w-[250px]"
-      } ${className}`}
+      className={`relative h-full flex-col border-r bg-card pt-16 ${
+        collapsed ? "w-16" : "w-64"
+      } transition-all duration-300 ease-in-out`}
     >
-      <div className="flex h-14 items-center border-b px-3">
-        <div className="flex w-full items-center justify-between">
-          {!isCollapsed && (
-            <Link to="/dashboard" className="flex items-center gap-2 font-semibold">
-              <Package className="h-6 w-6 text-primary" />
-              <span className="text-lg">Fornecedores</span>
-            </Link>
-          )}
+      <div className="flex h-full flex-col gap-4">
+        <div className="flex items-center justify-end px-3">
           <Button
             variant="ghost"
             size="icon"
-            className="ml-auto h-8 w-8"
-            onClick={() => setIsCollapsed(!isCollapsed)}
+            onClick={() => setCollapsed(!collapsed)}
           >
-            {isCollapsed ? <ChevronRight /> : <ChevronLeft />}
+            {collapsed ? (
+              <ChevronRight className="h-4 w-4" />
+            ) : (
+              <ChevronLeft className="h-4 w-4" />
+            )}
           </Button>
         </div>
-      </div>
-      <ScrollArea className="flex-1 px-3 py-4">
-        <div className="mb-4 flex flex-col gap-1">
-          <SidebarLink
-            href="/dashboard"
-            icon={Home}
-            title="Dashboard"
-            active={location.pathname === "/dashboard"}
-          />
-          <SidebarLink
-            href="/suppliers"
-            icon={Boxes}
-            title="Fornecedores"
-            active={location.pathname === "/suppliers"}
-          />
-          <SidebarLink
-            href="/favorites"
-            icon={Heart}
-            title="Favoritos"
-            active={location.pathname === "/favorites"}
-          />
-          <SidebarLink
-            href="/categories"
-            icon={ListFilter}
-            title="Categorias"
-            active={location.pathname === "/categories"}
-            permissionLevel={["master", "admin"]}
-          />
-          <SidebarLink
-            href="/analytics"
-            icon={BarChart3}
-            title="Análises"
-            active={location.pathname === "/analytics"}
-            permissionLevel={["master"]}
-          />
-          <SidebarLink
-            href="/users"
-            icon={Users}
-            title="Usuários"
-            active={location.pathname === "/users"}
-            permissionLevel={["master"]}
-          />
-        </div>
-        <Separator className="my-4" />
-        <div className="mb-4 flex flex-col gap-1">
-          <SidebarLink
-            href="/profile"
-            icon={UserCircle}
-            title="Meu Perfil"
-            active={location.pathname === "/profile"}
-          />
-        </div>
-      </ScrollArea>
-      <div className="flex flex-col items-center gap-2 p-3 border-t">
-        {!isCollapsed && (
-          <div className="flex items-center w-full gap-2 mb-2">
-            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-              {user?.name.charAt(0).toUpperCase()}
+
+        {collapsed ? (
+          <div className="flex flex-col items-center justify-center gap-1">
+            {user && (
+              <Link
+                to="#"
+                className="flex flex-col items-center justify-center p-2"
+              >
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-foreground">
+                  {user.name[0].toUpperCase()}
+                </div>
+              </Link>
+            )}
+            <Link to="/dashboard" title="Dashboard">
+              <Home
+                className={`mx-auto h-5 w-5 ${
+                  location.pathname === "/dashboard"
+                    ? "text-primary"
+                    : "text-muted-foreground"
+                }`}
+              />
+            </Link>
+            <Link to="/suppliers" title="Fornecedores">
+              <Boxes
+                className={`mx-auto h-5 w-5 ${
+                  location.pathname === "/suppliers"
+                    ? "text-primary"
+                    : "text-muted-foreground"
+                }`}
+              />
+            </Link>
+            <Link to="/favorites" title="Favoritos">
+              <Heart
+                className={`mx-auto h-5 w-5 ${
+                  location.pathname === "/favorites"
+                    ? "text-primary"
+                    : "text-muted-foreground"
+                }`}
+              />
+            </Link>
+            <Link to="/categories" title="Categorias">
+              <LayoutGrid
+                className={`mx-auto h-5 w-5 ${
+                  location.pathname === "/categories"
+                    ? "text-primary"
+                    : "text-muted-foreground"
+                }`}
+              />
+            </Link>
+            {user?.role === "master" && (
+              <Link to="/users" title="Usuários">
+                <UsersRound
+                  className={`mx-auto h-5 w-5 ${
+                    location.pathname === "/users"
+                      ? "text-primary"
+                      : "text-muted-foreground"
+                  }`}
+                />
+              </Link>
+            )}
+            <div className="mt-auto">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="my-2 h-9 w-9"
+                onClick={logout}
+                title="Sair"
+              >
+                <LogOut className="h-5 w-5 text-muted-foreground" />
+              </Button>
+              <ThemeToggle small />
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{user?.name}</p>
-              <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-1 px-3">
+            <div className="flex items-center gap-2 rounded-lg px-3 py-2">
+              {user && (
+                <div className="flex items-center gap-2 py-1">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-foreground">
+                    {user.name[0].toUpperCase()}
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium leading-none">
+                      {user.name}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {user.role === "master"
+                        ? "Master"
+                        : user.role === "admin"
+                        ? "Administrador"
+                        : "Usuário"}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+            <SidebarLink
+              href="/dashboard"
+              icon={Home}
+              title="Dashboard"
+              active={location.pathname === "/dashboard"}
+            />
+            <SidebarLink
+              href="/suppliers"
+              icon={Boxes}
+              title="Fornecedores"
+              active={location.pathname === "/suppliers"}
+            />
+            <SidebarLink
+              href="/favorites"
+              icon={Heart}
+              title="Favoritos"
+              active={location.pathname === "/favorites"}
+            />
+            <SidebarLink
+              href="/categories"
+              icon={LayoutGrid}
+              title="Categorias"
+              active={location.pathname === "/categories"}
+            />
+            <SidebarLink
+              href="/users"
+              icon={UsersRound}
+              title="Usuários"
+              active={location.pathname === "/users"}
+              permissionLevel={["master"]}
+            />
+            <div className="mt-auto flex items-center justify-between py-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="px-2 text-muted-foreground"
+                onClick={logout}
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                Sair
+              </Button>
+              <ThemeToggle />
             </div>
           </div>
         )}
-        <div className="flex items-center justify-between w-full">
-          <ThemeToggle />
-          
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={logout}
-            className="text-muted-foreground hover:text-destructive"
-          >
-            <LogOut className="h-5 w-5" />
-            <span className="sr-only">Sair</span>
-          </Button>
-        </div>
       </div>
     </div>
-  );
-}
-
-export function MobileSidebar() {
-  return (
-    <Sheet>
-      <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="md:hidden">
-          <Menu />
-          <span className="sr-only">Toggle menu</span>
-        </Button>
-      </SheetTrigger>
-      <SheetContent side="left" className="p-0 w-[85%] max-w-[300px]">
-        <Sidebar defaultCollapsed={false} className="border-none" />
-      </SheetContent>
-    </Sheet>
   );
 }

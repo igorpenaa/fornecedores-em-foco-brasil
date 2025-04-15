@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -14,6 +15,7 @@ import SupplierForm from "./pages/SupplierForm";
 import Categories from "./pages/Categories";
 import NotFound from "./pages/NotFound";
 import Favorites from "./pages/Favorites";
+import Users from "./pages/Users";
 
 const queryClient = new QueryClient();
 
@@ -40,6 +42,7 @@ const App = () => (
                 <Route path="/supplier/new" element={<SupplierForm />} />
                 <Route path="/supplier/edit/:id" element={<SupplierForm />} />
                 <Route path="/categories" element={<Categories />} />
+                <Route path="/users" element={<Users />} />
                 
                 {/* Rota para 404 */}
                 <Route path="*" element={<NotFound />} />

@@ -2,156 +2,152 @@
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { Category, Supplier } from "@/types";
 import { useAuth } from "./auth-context";
+import { useToast } from "@/hooks/use-toast";
+import { categoryService } from "@/services/category-service";
+import { supplierService } from "@/services/supplier-service";
 
 interface DataContextType {
   categories: Category[];
   suppliers: Supplier[];
-  addCategory: (category: Omit<Category, "id" | "createdAt" | "updatedAt">) => void;
-  updateCategory: (id: string, category: Partial<Category>) => void;
-  deleteCategory: (id: string) => void;
-  addSupplier: (supplier: Omit<Supplier, "id" | "createdAt" | "updatedAt">) => void;
-  updateSupplier: (id: string, supplier: Partial<Supplier>) => void;
-  deleteSupplier: (id: string) => void;
+  addCategory: (category: Omit<Category, "id" | "createdAt" | "updatedAt">) => Promise<void>;
+  updateCategory: (id: string, category: Partial<Category>) => Promise<void>;
+  deleteCategory: (id: string) => Promise<void>;
+  addSupplier: (supplier: Omit<Supplier, "id" | "createdAt" | "updatedAt">) => Promise<void>;
+  updateSupplier: (id: string, supplier: Partial<Supplier>) => Promise<void>;
+  deleteSupplier: (id: string) => Promise<void>;
   getCategory: (id: string) => Category | undefined;
   getSupplier: (id: string) => Supplier | undefined;
   filterSuppliersByCategory: (categoryId: string | null) => Supplier[];
+  uploadCategoryImage: (id: string, file: File) => Promise<string>;
+  uploadSupplierImage: (id: string, file: File) => Promise<string>;
+  refreshData: () => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
-
-// Mock data inicial
-const MOCK_CATEGORIES: Category[] = [
-  {
-    id: "1",
-    name: "Alimentos",
-    image: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=300&h=200&auto=format&fit=crop",
-    createdAt: new Date(),
-    updatedAt: new Date()
-  },
-  {
-    id: "2",
-    name: "Serviços",
-    image: "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?q=80&w=300&h=200&auto=format&fit=crop",
-    createdAt: new Date(),
-    updatedAt: new Date()
-  },
-  {
-    id: "3",
-    name: "Tecnologia",
-    image: "https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=300&h=200&auto=format&fit=crop",
-    createdAt: new Date(),
-    updatedAt: new Date()
-  }
-];
-
-const MOCK_SUPPLIERS: Supplier[] = [
-  {
-    id: "1",
-    name: "Fornecedor de Alimentos Naturais",
-    phone: "11999887766",
-    city: "São Paulo",
-    categoryId: "1",
-    image: "https://images.unsplash.com/photo-1542838132-92c53300491e?q=80&w=200&h=200&auto=format&fit=crop",
-    createdAt: new Date(),
-    updatedAt: new Date()
-  },
-  {
-    id: "2",
-    name: "Serviços de Limpeza Profissional",
-    phone: "21998765432",
-    city: "Rio de Janeiro",
-    categoryId: "2",
-    image: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=200&h=200&auto=format&fit=crop",
-    createdAt: new Date(),
-    updatedAt: new Date()
-  },
-  {
-    id: "3",
-    name: "Tech Solutions",
-    phone: "31987654321",
-    city: "Belo Horizonte",
-    categoryId: "3",
-    image: "https://images.unsplash.com/photo-1581092918056-0c4c3acd3789?q=80&w=200&h=200&auto=format&fit=crop",
-    createdAt: new Date(),
-    updatedAt: new Date()
-  },
-  {
-    id: "4",
-    name: "Distribuidora de Alimentos",
-    phone: "11987654321",
-    city: "Campinas",
-    categoryId: "1",
-    image: "https://images.unsplash.com/photo-1607349913338-fca6f7fc42d0?q=80&w=200&h=200&auto=format&fit=crop",
-    createdAt: new Date(),
-    updatedAt: new Date()
-  }
-];
 
 export function DataProvider({ children }: { children: ReactNode }) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const { user } = useAuth();
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(true);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [categoriesData, suppliersData] = await Promise.all([
+        categoryService.getAllCategories(),
+        supplierService.getAllSuppliers(),
+      ]);
+      
+      setCategories(categoriesData);
+      setSuppliers(suppliersData);
+    } catch (error) {
+      console.error("Erro ao carregar dados:", error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao carregar dados",
+        description: "Não foi possível carregar os dados. Tente novamente.",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    // Carregar dados do localStorage se existirem, caso contrário usar os mocks
-    const storedCategories = localStorage.getItem("categories");
-    const storedSuppliers = localStorage.getItem("suppliers");
-
-    if (storedCategories) {
-      setCategories(JSON.parse(storedCategories));
-    } else {
-      setCategories(MOCK_CATEGORIES);
-      localStorage.setItem("categories", JSON.stringify(MOCK_CATEGORIES));
+    if (user) {
+      fetchData();
     }
-
-    if (storedSuppliers) {
-      setSuppliers(JSON.parse(storedSuppliers));
-    } else {
-      setSuppliers(MOCK_SUPPLIERS);
-      localStorage.setItem("suppliers", JSON.stringify(MOCK_SUPPLIERS));
-    }
-  }, []);
+  }, [user]);
 
   // Funções para categorias
-  const addCategory = (category: Omit<Category, "id" | "createdAt" | "updatedAt">) => {
-    const newCategory: Category = {
-      ...category,
-      id: crypto.randomUUID(),
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-    
-    const updatedCategories = [...categories, newCategory];
-    setCategories(updatedCategories);
-    localStorage.setItem("categories", JSON.stringify(updatedCategories));
+  const addCategory = async (category: Omit<Category, "id" | "createdAt" | "updatedAt">) => {
+    try {
+      const newCategory = await categoryService.addCategory(category);
+      setCategories(prev => [...prev, newCategory]);
+      toast({
+        title: "Categoria adicionada",
+        description: "A categoria foi adicionada com sucesso.",
+      });
+    } catch (error) {
+      console.error("Erro ao adicionar categoria:", error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao adicionar categoria",
+        description: "Não foi possível adicionar a categoria. Tente novamente.",
+      });
+      throw error;
+    }
   };
 
-  const updateCategory = (id: string, category: Partial<Category>) => {
-    const categoryIndex = categories.findIndex(c => c.id === id);
-    if (categoryIndex === -1) return;
-
-    const updatedCategories = [...categories];
-    updatedCategories[categoryIndex] = {
-      ...updatedCategories[categoryIndex],
-      ...category,
-      updatedAt: new Date()
-    };
-
-    setCategories(updatedCategories);
-    localStorage.setItem("categories", JSON.stringify(updatedCategories));
+  const updateCategory = async (id: string, category: Partial<Category>) => {
+    try {
+      const updatedCategory = await categoryService.updateCategory(id, category);
+      setCategories(prev => 
+        prev.map(c => c.id === id ? updatedCategory : c)
+      );
+      toast({
+        title: "Categoria atualizada",
+        description: "A categoria foi atualizada com sucesso.",
+      });
+    } catch (error) {
+      console.error("Erro ao atualizar categoria:", error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao atualizar categoria",
+        description: "Não foi possível atualizar a categoria. Tente novamente.",
+      });
+      throw error;
+    }
   };
 
-  const deleteCategory = (id: string) => {
+  const deleteCategory = async (id: string) => {
     // Verificar se há fornecedores com esta categoria
     const supplierWithCategory = suppliers.find(s => s.categoryId === id);
     if (supplierWithCategory) {
-      alert("Não é possível excluir uma categoria que possui fornecedores associados.");
+      toast({
+        variant: "destructive",
+        title: "Não é possível excluir",
+        description: "Não é possível excluir uma categoria que possui fornecedores associados.",
+      });
       return;
     }
 
-    const updatedCategories = categories.filter(c => c.id !== id);
-    setCategories(updatedCategories);
-    localStorage.setItem("categories", JSON.stringify(updatedCategories));
+    try {
+      await categoryService.deleteCategory(id);
+      setCategories(prev => prev.filter(c => c.id !== id));
+      toast({
+        title: "Categoria excluída",
+        description: "A categoria foi excluída com sucesso.",
+      });
+    } catch (error) {
+      console.error("Erro ao excluir categoria:", error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao excluir categoria",
+        description: "Não foi possível excluir a categoria. Tente novamente.",
+      });
+      throw error;
+    }
+  };
+
+  const uploadCategoryImage = async (id: string, file: File) => {
+    try {
+      const downloadURL = await categoryService.uploadCategoryImage(id, file);
+      // Atualizar a categoria no estado
+      setCategories(prev => 
+        prev.map(c => c.id === id ? { ...c, image: downloadURL } : c)
+      );
+      return downloadURL;
+    } catch (error) {
+      console.error("Erro ao fazer upload da imagem:", error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao fazer upload",
+        description: "Não foi possível fazer o upload da imagem. Tente novamente.",
+      });
+      throw error;
+    }
   };
 
   const getCategory = (id: string) => {
@@ -159,38 +155,82 @@ export function DataProvider({ children }: { children: ReactNode }) {
   };
 
   // Funções para fornecedores
-  const addSupplier = (supplier: Omit<Supplier, "id" | "createdAt" | "updatedAt">) => {
-    const newSupplier: Supplier = {
-      ...supplier,
-      id: crypto.randomUUID(),
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-    
-    const updatedSuppliers = [...suppliers, newSupplier];
-    setSuppliers(updatedSuppliers);
-    localStorage.setItem("suppliers", JSON.stringify(updatedSuppliers));
+  const addSupplier = async (supplier: Omit<Supplier, "id" | "createdAt" | "updatedAt">) => {
+    try {
+      const newSupplier = await supplierService.addSupplier(supplier);
+      setSuppliers(prev => [...prev, newSupplier]);
+      toast({
+        title: "Fornecedor adicionado",
+        description: "O fornecedor foi adicionado com sucesso.",
+      });
+    } catch (error) {
+      console.error("Erro ao adicionar fornecedor:", error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao adicionar fornecedor",
+        description: "Não foi possível adicionar o fornecedor. Tente novamente.",
+      });
+      throw error;
+    }
   };
 
-  const updateSupplier = (id: string, supplier: Partial<Supplier>) => {
-    const supplierIndex = suppliers.findIndex(s => s.id === id);
-    if (supplierIndex === -1) return;
-
-    const updatedSuppliers = [...suppliers];
-    updatedSuppliers[supplierIndex] = {
-      ...updatedSuppliers[supplierIndex],
-      ...supplier,
-      updatedAt: new Date()
-    };
-
-    setSuppliers(updatedSuppliers);
-    localStorage.setItem("suppliers", JSON.stringify(updatedSuppliers));
+  const updateSupplier = async (id: string, supplier: Partial<Supplier>) => {
+    try {
+      const updatedSupplier = await supplierService.updateSupplier(id, supplier);
+      setSuppliers(prev => 
+        prev.map(s => s.id === id ? updatedSupplier : s)
+      );
+      toast({
+        title: "Fornecedor atualizado",
+        description: "O fornecedor foi atualizado com sucesso.",
+      });
+    } catch (error) {
+      console.error("Erro ao atualizar fornecedor:", error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao atualizar fornecedor",
+        description: "Não foi possível atualizar o fornecedor. Tente novamente.",
+      });
+      throw error;
+    }
   };
 
-  const deleteSupplier = (id: string) => {
-    const updatedSuppliers = suppliers.filter(s => s.id !== id);
-    setSuppliers(updatedSuppliers);
-    localStorage.setItem("suppliers", JSON.stringify(updatedSuppliers));
+  const deleteSupplier = async (id: string) => {
+    try {
+      await supplierService.deleteSupplier(id);
+      setSuppliers(prev => prev.filter(s => s.id !== id));
+      toast({
+        title: "Fornecedor excluído",
+        description: "O fornecedor foi excluído com sucesso.",
+      });
+    } catch (error) {
+      console.error("Erro ao excluir fornecedor:", error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao excluir fornecedor",
+        description: "Não foi possível excluir o fornecedor. Tente novamente.",
+      });
+      throw error;
+    }
+  };
+
+  const uploadSupplierImage = async (id: string, file: File) => {
+    try {
+      const downloadURL = await supplierService.uploadSupplierImage(id, file);
+      // Atualizar o fornecedor no estado
+      setSuppliers(prev => 
+        prev.map(s => s.id === id ? { ...s, image: downloadURL } : s)
+      );
+      return downloadURL;
+    } catch (error) {
+      console.error("Erro ao fazer upload da imagem:", error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao fazer upload",
+        description: "Não foi possível fazer o upload da imagem. Tente novamente.",
+      });
+      throw error;
+    }
   };
 
   const getSupplier = (id: string) => {
@@ -200,6 +240,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const filterSuppliersByCategory = (categoryId: string | null) => {
     if (!categoryId) return suppliers;
     return suppliers.filter(s => s.categoryId === categoryId);
+  };
+
+  const refreshData = async () => {
+    await fetchData();
   };
 
   return (
@@ -214,7 +258,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
       deleteSupplier,
       getCategory,
       getSupplier,
-      filterSuppliersByCategory
+      filterSuppliersByCategory,
+      uploadCategoryImage,
+      uploadSupplierImage,
+      refreshData
     }}>
       {children}
     </DataContext.Provider>

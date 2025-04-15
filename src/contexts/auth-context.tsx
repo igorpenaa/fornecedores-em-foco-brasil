@@ -1,6 +1,10 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { User, UserRole } from "@/types";
+import { auth } from "@/lib/firebase";
+import { onAuthStateChanged } from "firebase/auth";
+import { authService } from "@/services/user-service";
+import { useToast } from "@/hooks/use-toast";
 
 interface AuthContextType {
   user: User | null;
@@ -15,96 +19,80 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock data para desenvolvimento
-const MOCK_USERS = [
-  {
-    id: "1",
-    name: "Admin Master",
-    email: "master@example.com",
-    password: "senha123",
-    role: "master" as UserRole,
-    favorites: []
-  },
-  {
-    id: "2",
-    name: "Administrador",
-    email: "admin@example.com",
-    password: "senha123",
-    role: "admin" as UserRole,
-    favorites: []
-  },
-  {
-    id: "3",
-    name: "Usuário",
-    email: "user@example.com",
-    password: "senha123",
-    role: "user" as UserRole,
-    favorites: []
-  }
-];
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const { toast } = useToast();
 
   useEffect(() => {
-    // Verificar se o usuário está salvo no localStorage
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-      setIsAuthenticated(true);
-    }
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        try {
+          // Carrega os dados adicionais do usuário do Firestore
+          const userData = await authService.getUserById(firebaseUser.uid);
+          setUser(userData);
+          setIsAuthenticated(true);
+        } catch (error) {
+          console.error("Erro ao carregar dados do usuário:", error);
+          setUser(null);
+          setIsAuthenticated(false);
+        }
+      } else {
+        setUser(null);
+        setIsAuthenticated(false);
+      }
+    });
+
+    return () => unsubscribe();
   }, []);
 
   const login = async (email: string, password: string) => {
-    // Simulação de login com mock data
-    const foundUser = MOCK_USERS.find(u => u.email === email && u.password === password);
-    
-    if (!foundUser) {
-      throw new Error("Credenciais inválidas");
+    try {
+      // Verificar se é o usuário master predefinido
+      if (email === "pena.igorr@gmail.com") {
+        const userData = await authService.login(email, password);
+        // Se não for master, atualizar o papel para master
+        if (userData.role !== "master") {
+          await authService.updateUser(userData.id, { role: "master" });
+          userData.role = "master";
+        }
+        setUser(userData);
+        setIsAuthenticated(true);
+      } else {
+        const userData = await authService.login(email, password);
+        setUser(userData);
+        setIsAuthenticated(true);
+      }
+    } catch (error) {
+      console.error("Erro de login:", error);
+      throw error;
     }
-    
-    const userData: User = {
-      id: foundUser.id,
-      name: foundUser.name,
-      email: foundUser.email,
-      role: foundUser.role,
-      favorites: foundUser.favorites
-    };
-    
-    setUser(userData);
-    setIsAuthenticated(true);
-    localStorage.setItem("user", JSON.stringify(userData));
   };
 
   const register = async (name: string, email: string, password: string) => {
-    // Simulação de registro
-    const existingUser = MOCK_USERS.find(u => u.email === email);
-    
-    if (existingUser) {
-      throw new Error("Este e-mail já está em uso");
+    try {
+      const userData = await authService.register(name, email, password);
+      setUser(userData);
+      setIsAuthenticated(true);
+    } catch (error) {
+      console.error("Erro de registro:", error);
+      throw error;
     }
-    
-    const newUser: User = {
-      id: `${MOCK_USERS.length + 1}`,
-      name,
-      email,
-      role: "user", // Novos registros sempre serão usuários padrão
-      favorites: []
-    };
-    
-    // Aqui seria a parte de salvar no banco de dados
-    // Mas estamos apenas simulando para este protótipo
-    
-    setUser(newUser);
-    setIsAuthenticated(true);
-    localStorage.setItem("user", JSON.stringify(newUser));
   };
 
-  const logout = () => {
-    setUser(null);
-    setIsAuthenticated(false);
-    localStorage.removeItem("user");
+  const logout = async () => {
+    try {
+      await authService.logout();
+      setUser(null);
+      setIsAuthenticated(false);
+    } catch (error) {
+      console.error("Erro ao fazer logout:", error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao fazer logout",
+        description: "Ocorreu um erro ao tentar sair do sistema.",
+      });
+    }
   };
 
   const hasPermission = (roles: UserRole[]): boolean => {
@@ -112,16 +100,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return roles.includes(user.role);
   };
 
-  const toggleFavorite = (supplierId: string) => {
+  const toggleFavorite = async (supplierId: string) => {
     if (!user) return;
     
-    const newFavorites = user.favorites.includes(supplierId)
-      ? user.favorites.filter(id => id !== supplierId)
-      : [...user.favorites, supplierId];
-    
-    const updatedUser = { ...user, favorites: newFavorites };
-    setUser(updatedUser);
-    localStorage.setItem("user", JSON.stringify(updatedUser));
+    try {
+      const newFavorites = await authService.toggleFavorite(user.id, supplierId);
+      setUser(prevUser => {
+        if (!prevUser) return null;
+        return {
+          ...prevUser,
+          favorites: newFavorites
+        };
+      });
+    } catch (error) {
+      console.error("Erro ao atualizar favoritos:", error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao atualizar favoritos",
+        description: "Não foi possível atualizar seus favoritos. Tente novamente.",
+      });
+    }
   };
 
   const isFavorite = (supplierId: string): boolean => {
