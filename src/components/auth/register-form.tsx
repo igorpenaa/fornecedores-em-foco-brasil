@@ -1,9 +1,8 @@
-
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Eye, EyeOff, KeyRound, Mail, User } from "lucide-react";
+import { Eye, EyeOff, KeyRound, Mail, User, Gift } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
@@ -30,6 +29,7 @@ const registerSchema = z.object({
   password: z
     .string()
     .min(6, { message: "A senha deve ter pelo menos 6 caracteres" }),
+  geniusCoupon: z.string().optional(),
 });
 
 type RegisterFormValues = z.infer<typeof registerSchema>;
@@ -147,6 +147,26 @@ export function RegisterForm() {
                       {showPassword ? "Esconder senha" : "Mostrar senha"}
                     </span>
                   </Button>
+                </div>
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="geniusCoupon"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Cupom Rede Genius (Opcional)</FormLabel>
+              <FormControl>
+                <div className="relative">
+                  <Gift className="absolute left-3 top-2.5 h-5 w-5 text-muted-foreground" />
+                  <Input 
+                    placeholder="Digite seu cupom (se possuir)" 
+                    className="pl-10" 
+                    {...field} 
+                  />
                 </div>
               </FormControl>
               <FormMessage />

@@ -6,7 +6,8 @@ export interface User {
   name: string;
   email: string;
   role: UserRole;
-  favorites: string[]; // IDs dos fornecedores favoritados
+  favorites: string[];
+  geniusCoupon?: string; // New field for genius coupon
 }
 
 export interface Category {
@@ -22,8 +23,10 @@ export interface Supplier {
   name: string;
   phone: string;
   city: string;
-  categoryIds: string[]; // Changed from categoryId to categoryIds array
+  categoryIds: string[];
   image: string;
   createdAt: Date;
   updatedAt: Date;
+  isFreeSupplier: boolean; // New field
+  isGeniusStudent: boolean; // New field
 }

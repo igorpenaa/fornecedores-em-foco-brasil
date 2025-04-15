@@ -34,6 +34,8 @@ const supplierSchema = z.object({
     .max(50, { message: "A cidade deve ter no máximo 50 caracteres" }),
   categoryIds: z.array(z.string()).min(1, { message: "Selecione pelo menos uma categoria" }),
   image: z.string().url({ message: "Insira uma URL válida para a imagem" }),
+  isFreeSupplier: z.boolean().default(false),
+  isGeniusStudent: z.boolean().default(false),
 });
 
 type SupplierFormValues = z.infer<typeof supplierSchema>;
@@ -46,10 +48,8 @@ export default function SupplierForm() {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Get supplier by ID (if editing)
   const supplier = id ? getSupplier(id) : null;
 
-  // Setup form
   const form = useForm<SupplierFormValues>({
     resolver: zodResolver(supplierSchema),
     defaultValues: {
@@ -58,17 +58,17 @@ export default function SupplierForm() {
       city: supplier?.city || "",
       categoryIds: supplier?.categoryIds || [],
       image: supplier?.image || "",
+      isFreeSupplier: supplier?.isFreeSupplier || false,
+      isGeniusStudent: supplier?.isGeniusStudent || false,
     },
   });
 
-  // Verificar permissão - Movido para um useEffect
   useEffect(() => {
     if (!hasPermission(["master", "admin"])) {
       navigate("/dashboard");
     }
   }, [hasPermission, navigate]);
 
-  // Atualizar formulário quando o fornecedor mudar
   useEffect(() => {
     if (supplier) {
       form.reset({
@@ -77,35 +77,38 @@ export default function SupplierForm() {
         city: supplier.city,
         categoryIds: supplier.categoryIds,
         image: supplier.image,
+        isFreeSupplier: supplier.isFreeSupplier,
+        isGeniusStudent: supplier.isGeniusStudent,
       });
     }
   }, [supplier, form]);
 
-  // Manipular envio do formulário
   const onSubmit = async (data: SupplierFormValues) => {
     setIsSubmitting(true);
     try {
       if (supplier) {
-        // Atualizar fornecedor existente
         updateSupplier(supplier.id, {
           name: data.name,
           phone: data.phone,
           city: data.city,
           categoryIds: data.categoryIds,
           image: data.image,
+          isFreeSupplier: data.isFreeSupplier,
+          isGeniusStudent: data.isGeniusStudent,
         });
         toast({
           title: "Fornecedor atualizado",
           description: "O fornecedor foi atualizado com sucesso.",
         });
       } else {
-        // Adicionar novo fornecedor
         addSupplier({
           name: data.name,
           phone: data.phone,
           city: data.city,
           categoryIds: data.categoryIds,
           image: data.image,
+          isFreeSupplier: data.isFreeSupplier,
+          isGeniusStudent: data.isGeniusStudent,
         });
         toast({
           title: "Fornecedor adicionado",
@@ -124,8 +127,6 @@ export default function SupplierForm() {
     }
   };
 
-  // Se não tiver permissão, o useEffect irá redirecionar
-  // Este retorno condicional vem depois de todos os hooks, mantendo a ordem consistente
   if (!hasPermission(["master", "admin"])) {
     return null;
   }
@@ -249,12 +250,51 @@ export default function SupplierForm() {
                         alt="Preview"
                         className="h-full w-full object-cover"
                         onError={(e) => {
-                          // Substituir por uma imagem padrão em caso de erro
                           (e.target as HTMLImageElement).src = "https://placehold.co/400x300?text=Imagem+Inválida";
                         }}
                       />
                     </div>
                   )}
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="isFreeSupplier"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                  <FormControl>
+                    <Checkbox
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                  <div className="space-y-1 leading-none">
+                    <FormLabel>
+                      Fornecedor Gratuito
+                    </FormLabel>
+                  </div>
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="isGeniusStudent"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                  <FormControl>
+                    <Checkbox
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                  <div className="space-y-1 leading-none">
+                    <FormLabel>
+                      Aluno Rede Genius
+                    </FormLabel>
+                  </div>
                 </FormItem>
               )}
             />

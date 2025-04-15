@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
@@ -19,7 +18,6 @@ import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { useAuth } from "@/contexts/auth-context";
 import { UserRole } from "@/types";
 
-// Add MobileSidebar component
 export function MobileSidebar() {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
@@ -56,7 +54,7 @@ interface SidebarLinkProps {
 export interface SidebarProps {
   collapsed: boolean;
   setCollapsed: (collapsed: boolean) => void;
-  className?: string; // Add className prop to interface
+  className?: string;
 }
 
 function SidebarLink({
@@ -87,7 +85,6 @@ function SidebarLink({
   );
 }
 
-// Create a separate SidebarContent component for reuse
 function SidebarContent({ collapsed, setCollapsed }: SidebarProps) {
   const location = useLocation();
   const { user, logout } = useAuth();
@@ -166,6 +163,14 @@ function SidebarContent({ collapsed, setCollapsed }: SidebarProps) {
                 }`}
               />
             </Link>
+          )}
+          {user?.geniusCoupon && (
+            <SidebarLink
+              href="/genius-network"
+              icon={Menu}
+              title="REDE GENIUS"
+              active={location.pathname === "/genius-network"}
+            />
           )}
           <div className="mt-auto">
             <Button
