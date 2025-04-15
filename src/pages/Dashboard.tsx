@@ -110,7 +110,8 @@ export default function Dashboard() {
           <CardContent>
             <div className="space-y-4">
               {categories.map(category => {
-                const count = suppliers.filter(s => s.categoryIds.includes(category.id)).length;
+                // Add null check for categoryIds array
+                const count = suppliers.filter(s => s.categoryIds && s.categoryIds.includes(category.id)).length;
                 const percentage = suppliers.length > 0 
                   ? Math.round((count / suppliers.length) * 100) 
                   : 0;
