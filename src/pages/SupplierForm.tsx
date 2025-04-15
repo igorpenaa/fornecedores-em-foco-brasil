@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { z } from "zod";
@@ -6,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Form,
   FormControl,
@@ -15,13 +15,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useData } from "@/contexts/data-context";
 import { useAuth } from "@/contexts/auth-context";
 import { useToast } from "@/hooks/use-toast";
@@ -39,7 +32,7 @@ const supplierSchema = z.object({
     .string()
     .min(2, { message: "A cidade deve ter pelo menos 2 caracteres" })
     .max(50, { message: "A cidade deve ter no máximo 50 caracteres" }),
-  categoryId: z.string().min(1, { message: "Selecione uma categoria" }),
+  categoryIds: z.array(z.string()).min(1, { message: "Selecione pelo menos uma categoria" }),
   image: z.string().url({ message: "Insira uma URL válida para a imagem" }),
 });
 
@@ -53,17 +46,17 @@ export default function SupplierForm() {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Obter fornecedor por ID (se for edição)
+  // Get supplier by ID (if editing)
   const supplier = id ? getSupplier(id) : null;
 
-  // Configurar formulário
+  // Setup form
   const form = useForm<SupplierFormValues>({
     resolver: zodResolver(supplierSchema),
     defaultValues: {
       name: supplier?.name || "",
       phone: supplier?.phone || "",
       city: supplier?.city || "",
-      categoryId: supplier?.categoryId || "",
+      categoryIds: supplier?.categoryIds || [],
       image: supplier?.image || "",
     },
   });
@@ -82,7 +75,7 @@ export default function SupplierForm() {
         name: supplier.name,
         phone: supplier.phone,
         city: supplier.city,
-        categoryId: supplier.categoryId,
+        categoryIds: supplier.categoryIds,
         image: supplier.image,
       });
     }
@@ -98,7 +91,7 @@ export default function SupplierForm() {
           name: data.name,
           phone: data.phone,
           city: data.city,
-          categoryId: data.categoryId,
+          categoryIds: data.categoryIds,
           image: data.image,
         });
         toast({
@@ -111,7 +104,7 @@ export default function SupplierForm() {
           name: data.name,
           phone: data.phone,
           city: data.city,
-          categoryId: data.categoryId,
+          categoryIds: data.categoryIds,
           image: data.image,
         });
         toast({
@@ -190,35 +183,51 @@ export default function SupplierForm() {
                   </FormItem>
                 )}
               />
-
-              <FormField
-                control={form.control}
-                name="categoryId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Categoria</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione uma categoria" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {categories.map((category) => (
-                          <SelectItem key={category.id} value={category.id}>
-                            {category.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
             </div>
+
+            <FormField
+              control={form.control}
+              name="categoryIds"
+              render={() => (
+                <FormItem>
+                  <FormLabel>Categorias</FormLabel>
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {categories.map((category) => (
+                      <FormField
+                        key={category.id}
+                        control={form.control}
+                        name="categoryIds"
+                        render={({ field }) => {
+                          return (
+                            <FormItem
+                              key={category.id}
+                              className="flex flex-row items-start space-x-3 space-y-0"
+                            >
+                              <FormControl>
+                                <Checkbox
+                                  checked={field.value?.includes(category.id)}
+                                  onCheckedChange={(checked) => {
+                                    return checked
+                                      ? field.onChange([...field.value, category.id])
+                                      : field.onChange(
+                                          field.value?.filter((value) => value !== category.id)
+                                        )
+                                  }}
+                                />
+                              </FormControl>
+                              <FormLabel className="font-normal">
+                                {category.name}
+                              </FormLabel>
+                            </FormItem>
+                          )
+                        }}
+                      />
+                    ))}
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <FormField
               control={form.control}

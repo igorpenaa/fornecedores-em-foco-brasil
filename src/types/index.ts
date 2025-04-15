@@ -22,7 +22,7 @@ export interface Supplier {
   name: string;
   phone: string;
   city: string;
-  categoryId: string;
+  categoryIds: string[]; // Changed from categoryId to categoryIds array
   image: string;
   createdAt: Date;
   updatedAt: Date;

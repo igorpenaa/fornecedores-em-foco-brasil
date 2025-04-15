@@ -1,4 +1,3 @@
-
 import { 
   collection, 
   doc, 
@@ -36,7 +35,7 @@ export const supplierService = {
   getSuppliersByCategory: async (categoryId: string) => {
     const suppliersQuery = query(
       collection(db, SUPPLIERS_COLLECTION),
-      where("categoryId", "==", categoryId)
+      where("categoryIds", "array-contains", categoryId)
     );
     
     const suppliersSnapshot = await getDocs(suppliersQuery);
