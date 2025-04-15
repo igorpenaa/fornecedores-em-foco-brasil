@@ -65,6 +65,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } catch (error) {
       console.error("Erro de login:", error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao fazer login",
+        description: error instanceof Error ? error.message : "Credenciais inválidas",
+      });
       throw error;
     }
   };
@@ -76,6 +81,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsAuthenticated(true);
     } catch (error) {
       console.error("Erro de registro:", error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao criar conta",
+        description: error instanceof Error ? error.message : "Ocorreu um erro inesperado",
+      });
       throw error;
     }
   };

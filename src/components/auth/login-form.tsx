@@ -56,11 +56,8 @@ export function LoginForm() {
       });
       navigate("/dashboard");
     } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Erro ao fazer login",
-        description: error instanceof Error ? error.message : "Ocorreu um erro inesperado",
-      });
+      console.error("Erro capturado no formulário:", error);
+      // O erro já foi tratado no AuthContext, não precisa mostrar novamente o toast aqui
     } finally {
       setIsLoading(false);
     }

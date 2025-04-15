@@ -98,13 +98,30 @@ export const authService = {
   // Login
   login: async (email: string, password: string) => {
     try {
+      // Autenticação direta com Firebase Auth
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      
+      // Busca dados adicionais do Firestore
       const userDoc = await getDoc(doc(db, USERS_COLLECTION, userCredential.user.uid));
       
       if (!userDoc.exists()) {
-        throw new Error("Usuário não encontrado");
+        // Se o usuário existe no Auth mas não no Firestore, cria o documento
+        const newUserData: Omit<User, "id"> = {
+          name: userCredential.user.displayName || "",
+          email: userCredential.user.email || "",
+          role: "user",
+          favorites: []
+        };
+        
+        await setDoc(doc(db, USERS_COLLECTION, userCredential.user.uid), newUserData);
+        
+        return {
+          id: userCredential.user.uid,
+          ...newUserData
+        } as User;
       }
       
+      // Retorna os dados completos do usuário
       return {
         id: userCredential.user.uid,
         email: userCredential.user.email || "",
@@ -112,7 +129,11 @@ export const authService = {
         ...userDoc.data()
       } as User;
     } catch (error: any) {
-      throw new Error("Credenciais inválidas");
+      console.error("Erro durante login:", error);
+      if (error.code === "auth/invalid-credential" || error.code === "auth/user-not-found" || error.code === "auth/wrong-password") {
+        throw new Error("Credenciais inválidas");
+      }
+      throw new Error("Erro ao fazer login");
     }
   },
 
@@ -140,6 +161,7 @@ export const authService = {
         ...userData
       } as User;
     } catch (error: any) {
+      console.error("Erro durante registro:", error);
       if (error.code === "auth/email-already-in-use") {
         throw new Error("Este e-mail já está em uso");
       }
