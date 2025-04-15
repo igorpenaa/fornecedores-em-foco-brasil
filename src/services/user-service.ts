@@ -3,8 +3,7 @@ import {
   createUserWithEmailAndPassword, 
   signInWithEmailAndPassword, 
   signOut, 
-  updateProfile,
-  User as FirebaseUser
+  updateProfile
 } from "firebase/auth";
 import { 
   collection, 
@@ -22,6 +21,77 @@ import { User, UserRole } from "@/types";
 
 // Collection references
 const USERS_COLLECTION = "users";
+
+// Serviço de usuários
+export const userService = {
+  // Adicionar usuário
+  addUser: async (userData: { name: string; email: string; password: string; role: UserRole }) => {
+    try {
+      // Cria o usuário no Firebase Auth
+      const userCredential = await createUserWithEmailAndPassword(auth, userData.email, userData.password);
+      
+      // Atualiza o perfil com o nome do usuário
+      await updateProfile(userCredential.user, { displayName: userData.name });
+      
+      // Cria um documento para o usuário no Firestore
+      const newUserData: Omit<User, "id"> = {
+        name: userData.name,
+        email: userData.email,
+        role: userData.role,
+        favorites: []
+      };
+      
+      await setDoc(doc(db, USERS_COLLECTION, userCredential.user.uid), newUserData);
+      
+      return {
+        id: userCredential.user.uid,
+        ...newUserData
+      } as User;
+    } catch (error: any) {
+      if (error.code === "auth/email-already-in-use") {
+        throw new Error("Este e-mail já está em uso");
+      }
+      throw new Error("Erro ao criar usuário");
+    }
+  },
+
+  // Atualizar usuário
+  updateUser: async (userId: string, userData: Partial<User>) => {
+    await updateDoc(doc(db, USERS_COLLECTION, userId), userData);
+    return { id: userId, ...userData };
+  },
+
+  // Obter todos os usuários
+  getAllUsers: async () => {
+    const usersCollection = collection(db, USERS_COLLECTION);
+    const usersSnapshot = await getDocs(usersCollection);
+    
+    return usersSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    })) as User[];
+  },
+
+  // Obter um usuário pelo ID
+  getUserById: async (userId: string) => {
+    const userDoc = await getDoc(doc(db, USERS_COLLECTION, userId));
+    
+    if (!userDoc.exists()) {
+      throw new Error("Usuário não encontrado");
+    }
+    
+    return {
+      id: userDoc.id,
+      ...userDoc.data()
+    } as User;
+  },
+
+  // Deletar um usuário
+  deleteUser: async (userId: string) => {
+    await deleteDoc(doc(db, USERS_COLLECTION, userId));
+    // Esta função não deleta o usuário do Firebase Auth, apenas do Firestore
+  }
+};
 
 // Serviço de autenticação
 export const authService = {
@@ -82,42 +152,6 @@ export const authService = {
     await signOut(auth);
   },
 
-  // Obter todos os usuários (somente admin ou master)
-  getAllUsers: async () => {
-    const usersCollection = collection(db, USERS_COLLECTION);
-    const usersSnapshot = await getDocs(usersCollection);
-    
-    return usersSnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    })) as User[];
-  },
-
-  // Obter um usuário pelo ID
-  getUserById: async (userId: string) => {
-    const userDoc = await getDoc(doc(db, USERS_COLLECTION, userId));
-    
-    if (!userDoc.exists()) {
-      throw new Error("Usuário não encontrado");
-    }
-    
-    return {
-      id: userDoc.id,
-      ...userDoc.data()
-    } as User;
-  },
-
-  // Atualizar um usuário
-  updateUser: async (userId: string, userData: Partial<User>) => {
-    await updateDoc(doc(db, USERS_COLLECTION, userId), userData);
-  },
-
-  // Deletar um usuário
-  deleteUser: async (userId: string) => {
-    await deleteDoc(doc(db, USERS_COLLECTION, userId));
-    // Nota: Esta função não deleta o usuário do Firebase Auth, apenas do Firestore
-  },
-
   // Adicionar/remover favorito
   toggleFavorite: async (userId: string, supplierId: string) => {
     const userRef = doc(db, USERS_COLLECTION, userId);
@@ -137,5 +171,19 @@ export const authService = {
     await updateDoc(userRef, { favorites: newFavorites });
     
     return newFavorites;
+  },
+
+  // Obter usuário pelo ID
+  getUserById: async (userId: string) => {
+    const userDoc = await getDoc(doc(db, USERS_COLLECTION, userId));
+    
+    if (!userDoc.exists()) {
+      throw new Error("Usuário não encontrado");
+    }
+    
+    return {
+      id: userDoc.id,
+      ...userDoc.data()
+    } as User;
   }
 };

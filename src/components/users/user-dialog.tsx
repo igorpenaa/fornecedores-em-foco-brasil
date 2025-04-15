@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { toast } from "sonner";
 import { useForm } from "react-hook-form";
@@ -106,9 +105,10 @@ export function UserDialog({ open, onOpenChange, selectedUser }: UserDialogProps
       // Ensure name is always provided (not optional)
       const updatedUser: User = {
         id: selectedUser.id,
-        name: data.name,  // This is required by the type
+        name: data.name,
         email: data.email,
         role: data.role,
+        favorites: selectedUser.favorites || []
       };
       
       // Only include password if it's provided (for updates)
@@ -126,14 +126,12 @@ export function UserDialog({ open, onOpenChange, selectedUser }: UserDialogProps
       }
       
       // Adding a new user - password is required here
-      const newUser = {
+      addUserMutation.mutate({
         name: data.name,
         email: data.email,
         role: data.role,
         password: data.password,
-      };
-      
-      addUserMutation.mutate(newUser);
+      });
     }
   };
 

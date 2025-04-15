@@ -49,7 +49,7 @@ export default function Users() {
   }, [currentUser]);
 
   // Carregar usuários
-  const { data: users, isLoading } = useQuery({
+  const { data: users = [], isLoading } = useQuery({
     queryKey: ["users"],
     queryFn: userService.getAllUsers,
   });
