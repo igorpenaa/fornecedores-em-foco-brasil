@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
@@ -13,6 +12,7 @@ import {
   Package,
   UserCircle,
   Users,
+  Heart
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -41,7 +41,6 @@ function SidebarLink({
 }: SidebarLinkProps) {
   const { hasPermission } = useAuth();
 
-  // Se há níveis de permissão definidos e o usuário não tem permissão, não mostrar o link
   if (permissionLevel && !hasPermission(permissionLevel)) {
     return null;
   }
@@ -73,7 +72,6 @@ export function Sidebar({
   const location = useLocation();
   const { user, logout } = useAuth();
 
-  // Ajusta o colapso em telas menores
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth < 768) {
@@ -81,7 +79,6 @@ export function Sidebar({
       }
     };
 
-    // Configuração inicial
     handleResize();
 
     window.addEventListener("resize", handleResize);
@@ -125,6 +122,12 @@ export function Sidebar({
             icon={Boxes}
             title="Fornecedores"
             active={location.pathname === "/suppliers"}
+          />
+          <SidebarLink
+            href="/favorites"
+            icon={Heart}
+            title="Favoritos"
+            active={location.pathname === "/favorites"}
           />
           <SidebarLink
             href="/categories"

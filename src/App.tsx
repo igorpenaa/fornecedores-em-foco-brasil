@@ -13,6 +13,7 @@ import Suppliers from "./pages/Suppliers";
 import SupplierForm from "./pages/SupplierForm";
 import Categories from "./pages/Categories";
 import NotFound from "./pages/NotFound";
+import Favorites from "./pages/Favorites";
 
 const queryClient = new QueryClient();
 
@@ -35,6 +36,7 @@ const App = () => (
                 {/* Rotas protegidas */}
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/suppliers" element={<Suppliers />} />
+                <Route path="/favorites" element={<Favorites />} />
                 <Route path="/supplier/new" element={<SupplierForm />} />
                 <Route path="/supplier/edit/:id" element={<SupplierForm />} />
                 <Route path="/categories" element={<Categories />} />
