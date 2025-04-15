@@ -1,5 +1,5 @@
 
-import { ReactNode, useEffect } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/auth-context";
 import { Sidebar } from "./sidebar";
@@ -15,6 +15,7 @@ interface AppLayoutProps {
 export function AppLayout({ children, title, subtitle, requireAuth = true }: AppLayoutProps) {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   useEffect(() => {
     if (requireAuth && !isAuthenticated) {
@@ -28,7 +29,11 @@ export function AppLayout({ children, title, subtitle, requireAuth = true }: App
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background">
-      <Sidebar className="hidden md:flex" />
+      <Sidebar
+        className="hidden md:flex"
+        collapsed={sidebarCollapsed}
+        setCollapsed={setSidebarCollapsed}
+      />
       
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header title={title} subtitle={subtitle} />
