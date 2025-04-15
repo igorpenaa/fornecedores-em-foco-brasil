@@ -116,7 +116,7 @@ function SidebarContent({ collapsed, setCollapsed }: SidebarProps) {
               className="flex flex-col items-center justify-center p-2"
             >
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-foreground">
-                {user.name[0].toUpperCase()}
+                {user.name && user.name.length > 0 ? user.name[0].toUpperCase() : "U"}
               </div>
             </Link>
           )}
@@ -186,16 +186,16 @@ function SidebarContent({ collapsed, setCollapsed }: SidebarProps) {
             {user && (
               <div className="flex items-center gap-2 py-1">
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-foreground">
-                  {user.name[0].toUpperCase()}
+                  {user.name && user.name.length > 0 ? user.name[0].toUpperCase() : "U"}
                 </div>
                 <div className="flex flex-col">
                   <span className="text-sm font-medium leading-none">
-                    {user.name}
+                    {user?.name || "Usuário"}
                   </span>
                   <span className="text-xs text-muted-foreground">
-                    {user.role === "master"
+                    {user?.role === "master"
                       ? "Master"
-                      : user.role === "admin"
+                      : user?.role === "admin"
                       ? "Administrador"
                       : "Usuário"}
                   </span>
