@@ -1,6 +1,5 @@
-
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { User, UserRole } from "@/types";
+import { User, UserRole, GeniusStatus } from "@/types";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { authService } from "@/services/user-service";
@@ -10,11 +9,13 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string) => Promise<void>;
+  register: (name: string, email: string, password: string, geniusCoupon?: string) => Promise<void>;
   logout: () => void;
   hasPermission: (roles: UserRole[]) => boolean;
   toggleFavorite: (supplierId: string) => void;
   isFavorite: (supplierId: string) => boolean;
+  updateGeniusStatus: (userId: string, status: GeniusStatus) => Promise<void>;
+  canAccessGenius: () => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -28,7 +29,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         try {
-          // Carrega os dados adicionais do usuário do Firestore
           const userData = await authService.getUserById(firebaseUser.uid);
           setUser(userData);
           setIsAuthenticated(true);
@@ -48,10 +48,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string) => {
     try {
-      // Verificar se é o usuário master predefinido
       if (email === "pena.igorr@gmail.com") {
         const userData = await authService.login(email, password);
-        // Se não for master, atualizar o papel para master
         if (userData.role !== "master") {
           await authService.updateUser(userData.id, { role: "master" });
           userData.role = "master";
@@ -74,9 +72,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const register = async (name: string, email: string, password: string) => {
+  const register = async (name: string, email: string, password: string, geniusCoupon?: string) => {
     try {
-      const userData = await authService.register(name, email, password);
+      const userData = await authService.register(name, email, password, geniusCoupon);
       setUser(userData);
       setIsAuthenticated(true);
     } catch (error) {
@@ -108,6 +106,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const hasPermission = (roles: UserRole[]): boolean => {
     if (!user) return false;
     return roles.includes(user.role);
+  };
+
+  const updateGeniusStatus = async (userId: string, status: GeniusStatus) => {
+    try {
+      await authService.updateGeniusStatus(userId, status);
+      if (user && user.id === userId) {
+        setUser(prevUser => {
+          if (!prevUser) return null;
+          return {
+            ...prevUser,
+            geniusStatus: status
+          };
+        });
+      }
+      toast({
+        title: status === "approved" ? "Acesso liberado!" : "Status atualizado",
+        description: status === "approved" 
+          ? "O aluno agora tem acesso à Rede Genius" 
+          : "O status do aluno foi atualizado."
+      });
+    } catch (error) {
+      console.error("Erro ao atualizar status Genius:", error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao atualizar status",
+        description: "Não foi possível atualizar o status do usuário.",
+      });
+      throw error;
+    }
+  };
+
+  const canAccessGenius = (): boolean => {
+    if (!user) return false;
+    
+    if (user.role === "admin" || user.role === "master") return true;
+    
+    if (user.geniusCoupon === "ALUNOREDEGENIUS") {
+      return user.geniusStatus === "approved";
+    }
+    
+    return false;
   };
 
   const toggleFavorite = async (supplierId: string) => {
@@ -146,7 +185,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logout, 
       hasPermission,
       toggleFavorite,
-      isFavorite
+      isFavorite,
+      updateGeniusStatus,
+      canAccessGenius
     }}>
       {children}
     </AuthContext.Provider>

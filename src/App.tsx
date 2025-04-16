@@ -16,6 +16,7 @@ import Categories from "./pages/Categories";
 import NotFound from "./pages/NotFound";
 import Favorites from "./pages/Favorites";
 import Users from "./pages/Users";
+import GeniusNetwork from "./pages/GeniusNetwork";
 
 const queryClient = new QueryClient();
 
@@ -43,6 +44,7 @@ const App = () => (
                 <Route path="/supplier/edit/:id" element={<SupplierForm />} />
                 <Route path="/categories" element={<Categories />} />
                 <Route path="/users" element={<Users />} />
+                <Route path="/genius-network" element={<GeniusNetwork />} />
                 
                 {/* Rota para 404 */}
                 <Route path="*" element={<NotFound />} />

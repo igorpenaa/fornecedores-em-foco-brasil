@@ -1,5 +1,6 @@
 
 export type UserRole = 'master' | 'admin' | 'user';
+export type GeniusStatus = 'pending' | 'approved';
 
 export interface User {
   id: string;
@@ -7,7 +8,8 @@ export interface User {
   email: string;
   role: UserRole;
   favorites: string[];
-  geniusCoupon?: string; // New field for genius coupon
+  geniusCoupon?: string;
+  geniusStatus?: GeniusStatus; // Status de aprovação para alunos Genius
 }
 
 export interface Category {
@@ -27,6 +29,6 @@ export interface Supplier {
   image: string;
   createdAt: Date;
   updatedAt: Date;
-  isFreeSupplier: boolean; // New field
-  isGeniusStudent: boolean; // New field
+  isFreeSupplier: boolean;
+  isGeniusStudent: boolean;
 }

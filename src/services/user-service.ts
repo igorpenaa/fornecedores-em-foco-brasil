@@ -1,4 +1,3 @@
-
 import { 
   createUserWithEmailAndPassword, 
   signInWithEmailAndPassword, 
@@ -17,7 +16,7 @@ import {
   where 
 } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
-import { User, UserRole } from "@/types";
+import { User, UserRole, GeniusStatus } from "@/types";
 
 // Collection references
 const USERS_COLLECTION = "users";
@@ -138,7 +137,7 @@ export const authService = {
   },
 
   // Registro
-  register: async (name: string, email: string, password: string, role: UserRole = "user") => {
+  register: async (name: string, email: string, password: string, geniusCoupon?: string, role: UserRole = "user") => {
     try {
       // Cria o usuário no Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
@@ -153,6 +152,14 @@ export const authService = {
         role,
         favorites: []
       };
+      
+      // Se o cupom for da Rede Genius, adicionar o status de aprovação pendente
+      if (geniusCoupon === "ALUNOREDEGENIUS") {
+        userData.geniusCoupon = geniusCoupon;
+        userData.geniusStatus = "pending";
+      } else if (geniusCoupon) {
+        userData.geniusCoupon = geniusCoupon;
+      }
       
       await setDoc(doc(db, USERS_COLLECTION, userCredential.user.uid), userData);
       
@@ -207,6 +214,12 @@ export const authService = {
       id: userDoc.id,
       ...userDoc.data()
     } as User;
+  },
+
+  // Atualizar status de aprovação Genius
+  updateGeniusStatus: async (userId: string, status: GeniusStatus) => {
+    await updateDoc(doc(db, USERS_COLLECTION, userId), { geniusStatus: status });
+    return status;
   },
 
   // Adicionar método updateUser para o authService

@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -47,17 +48,30 @@ export function RegisterForm() {
       name: "",
       email: "",
       password: "",
+      geniusCoupon: "",
     },
   });
 
   async function onSubmit(data: RegisterFormValues) {
     setIsLoading(true);
     try {
-      await register(data.name, data.email, data.password);
-      toast({
-        title: "Cadastro realizado com sucesso!",
-        description: "Bem-vindo ao sistema de gestão de fornecedores.",
-      });
+      // Verificar se o cupom é o da Rede Genius
+      const isGeniusCoupon = data.geniusCoupon === "ALUNOREDEGENIUS";
+      
+      await register(data.name, data.email, data.password, data.geniusCoupon);
+      
+      if (isGeniusCoupon) {
+        toast({
+          title: "Cadastro realizado!",
+          description: "Aguarde a aprovação do administrador para acessar a Rede Genius.",
+        });
+      } else {
+        toast({
+          title: "Cadastro realizado com sucesso!",
+          description: "Bem-vindo ao sistema de gestão de fornecedores.",
+        });
+      }
+      
       navigate("/dashboard");
     } catch (error) {
       toast({

@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { PlusCircle, Search, Edit, Trash } from "lucide-react";
+import { PlusCircle, Search, Edit, Trash, Check, Lock } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { AppLayout } from "@/components/layout/app-layout";
@@ -37,7 +37,7 @@ export default function Users() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, updateGeniusStatus } = useAuth();
   const queryClient = useQueryClient();
 
   // Verificar se o usuário atual é master
@@ -66,6 +66,14 @@ export default function Users() {
     }
   });
 
+  // Mutation para aprovar acesso à Rede Genius
+  const approveGeniusMutation = useMutation({
+    mutationFn: (userId: string) => updateGeniusStatus(userId, "approved"),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+    }
+  });
+
   // Filtrar usuários pelo termo de busca
   const filteredUsers = users?.filter(user => 
     user.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -83,6 +91,11 @@ export default function Users() {
     deleteUserMutation.mutate(userId);
   };
 
+  // Função para aprovar acesso à Rede Genius
+  const handleApproveGenius = (userId: string) => {
+    approveGeniusMutation.mutate(userId);
+  };
+
   // Função para renderizar o badge de acordo com o role
   const renderRoleBadge = (role: UserRole) => {
     switch (role) {
@@ -95,6 +108,31 @@ export default function Users() {
       default:
         return null;
     }
+  };
+
+  // Função para renderizar o botão de aprovação Genius
+  const renderGeniusStatus = (user: User) => {
+    if (user.geniusCoupon === "ALUNOREDEGENIUS") {
+      if (user.geniusStatus === "approved") {
+        return (
+          <Badge className="bg-blue-500 flex items-center gap-1">
+            <Check size={14} />
+            ALUNO
+          </Badge>
+        );
+      } else {
+        return (
+          <Button
+            size="sm"
+            className="bg-green-500 hover:bg-green-600 text-white text-xs px-2 py-1 h-auto"
+            onClick={() => handleApproveGenius(user.id)}
+          >
+            LIBERAR ACESSO
+          </Button>
+        );
+      }
+    }
+    return null;
   };
 
   return (
@@ -130,6 +168,7 @@ export default function Users() {
                 <TableHead>Nome</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Tipo</TableHead>
+                <TableHead>Status Genius</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -140,6 +179,7 @@ export default function Users() {
                     <TableCell><Skeleton className="h-5 w-[180px]" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-[220px]" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-[100px]" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-[100px]" /></TableCell>
                     <TableCell><Skeleton className="h-9 w-[100px] ml-auto" /></TableCell>
                   </TableRow>
                 ))
@@ -149,6 +189,7 @@ export default function Users() {
                     <TableCell className="font-medium">{user.name}</TableCell>
                     <TableCell>{user.email}</TableCell>
                     <TableCell>{renderRoleBadge(user.role)}</TableCell>
+                    <TableCell>{renderGeniusStatus(user)}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <Button 
@@ -193,7 +234,7 @@ export default function Users() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center py-6 text-muted-foreground">
+                  <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
                     {searchTerm ? "Nenhum usuário encontrado para esta busca" : "Nenhum usuário cadastrado"}
                   </TableCell>
                 </TableRow>
