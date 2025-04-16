@@ -16,6 +16,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { Supplier } from "@/types";
 import { useData } from "@/contexts/data-context";
 import { Badge } from "@/components/ui/badge";
+import { SupplierRating } from "@/components/suppliers/supplier-rating";
 
 interface SupplierCardProps {
   supplier: Supplier;
@@ -89,6 +90,7 @@ export function SupplierCard({ supplier }: SupplierCardProps) {
         <CardContent className="p-4">
           <div className="space-y-2">
             <h3 className="text-lg font-semibold">{supplier.name}</h3>
+            <SupplierRating supplier={supplier} />
             <div className="flex items-center text-sm">
               <Phone className="mr-1 h-4 w-4 text-muted-foreground" />
               <span>{supplier.phone}</span>
@@ -167,3 +169,4 @@ export function SupplierCard({ supplier }: SupplierCardProps) {
     </>
   );
 }
+
