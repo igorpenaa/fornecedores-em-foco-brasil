@@ -1,10 +1,9 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Filter, Plus, Search } from "lucide-react";
+import { Filter, Plus, Search, AlertCircle } from "lucide-react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useData } from "@/contexts/data-context";
 import { SupplierCard } from "@/components/suppliers/supplier-card";
@@ -21,11 +20,37 @@ export default function Suppliers() {
   const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
   const [filteredSuppliers, setFilteredSuppliers] = useState<Supplier[]>(suppliers);
 
+  // Helper function to check if user is a Genius student with pending access
+  const isGeniusStudentPending = user?.geniusCoupon === "ALUNOREDEGENIUS" && user?.geniusStatus !== "approved";
+
+  // Helper function to check if user is a Genius student with blocked access
+  const isGeniusStudentBlocked = user?.geniusCoupon === "ALUNOREDEGENIUS" && user?.geniusStatus === "blocked";
+
+  // Helper function to filter suppliers based on user role and status
+  const filterSuppliersByUserAccess = (suppliers: Supplier[]) => {
+    if (hasPermission(["master", "admin"])) {
+      return suppliers; // Admins see all suppliers
+    }
+
+    if (user?.geniusCoupon === "ALUNOREDEGENIUS") {
+      if (user.geniusStatus === "approved") {
+        // Only show free suppliers and Genius student suppliers
+        return suppliers.filter(s => s.isFreeSupplier || s.isGeniusStudent);
+      }
+      return []; // If not approved, show no suppliers
+    }
+
+    return suppliers; // Regular users see all suppliers
+  };
+
   // Filtrar fornecedores baseado nos critérios
   useEffect(() => {
     let result = suppliers;
 
-    // Filtrar por termo de busca
+    // Apply user access filter first
+    result = filterSuppliersByUserAccess(result);
+
+    // Then apply other filters
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       result = result.filter(
@@ -35,14 +60,12 @@ export default function Suppliers() {
       );
     }
 
-    // Filtrar por categoria
     if (selectedCategory) {
       result = result.filter(
         (supplier) => supplier.categoryIds.includes(selectedCategory)
       );
     }
 
-    // Filtrar apenas favoritos
     if (showOnlyFavorites && user) {
       result = result.filter((supplier) =>
         user.favorites.includes(supplier.id)
@@ -51,6 +74,47 @@ export default function Suppliers() {
 
     setFilteredSuppliers(result);
   }, [suppliers, searchTerm, selectedCategory, showOnlyFavorites, user]);
+
+  if (isGeniusStudentPending) {
+    return (
+      <AppLayout title="Fornecedores" subtitle="Lista de fornecedores">
+        <Card className="border-yellow-300 bg-yellow-50 dark:bg-yellow-950/30">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-xl text-yellow-800 dark:text-yellow-400">
+              <AlertCircle size={24} />
+              Acesso Pendente
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <CardDescription className="text-base text-yellow-700 dark:text-yellow-300">
+              Olá <strong>{user?.name}</strong>, estamos verificando sua matrícula diretamente no sistema. 
+              Favor aguarde a autorização de acesso do administrador.
+            </CardDescription>
+          </CardContent>
+        </Card>
+      </AppLayout>
+    );
+  }
+
+  if (isGeniusStudentBlocked) {
+    return (
+      <AppLayout title="Fornecedores" subtitle="Lista de fornecedores">
+        <Card className="border-red-300 bg-red-50 dark:bg-red-950/30">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-xl text-red-800 dark:text-red-400">
+              <AlertCircle size={24} />
+              Acesso Bloqueado
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <CardDescription className="text-base text-red-700 dark:text-red-300">
+              Seu acesso está temporariamente bloqueado. Entre em contato com o administrador para mais informações.
+            </CardDescription>
+          </CardContent>
+        </Card>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout title="Fornecedores" subtitle="Gerencie e visualize fornecedores">

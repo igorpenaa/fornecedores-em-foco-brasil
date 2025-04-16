@@ -139,6 +139,9 @@ export const authService = {
   // Registro
   register: async (name: string, email: string, password: string, geniusCoupon?: string, role: UserRole = "user") => {
     try {
+      // If it's a Genius student, set role to 'aluno'
+      const actualRole = geniusCoupon === "ALUNOREDEGENIUS" ? "aluno" : role;
+      
       // Cria o usuário no Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       
@@ -149,7 +152,7 @@ export const authService = {
       const userData: Omit<User, "id"> = {
         name,
         email,
-        role,
+        role: actualRole,
         favorites: []
       };
       

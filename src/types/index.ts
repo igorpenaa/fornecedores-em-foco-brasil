@@ -1,6 +1,5 @@
-
-export type UserRole = 'master' | 'admin' | 'user';
-export type GeniusStatus = 'pending' | 'approved';
+export type UserRole = 'master' | 'admin' | 'user' | 'aluno';
+export type GeniusStatus = 'pending' | 'approved' | 'blocked';
 
 export interface User {
   id: string;

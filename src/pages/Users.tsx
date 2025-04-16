@@ -1,7 +1,6 @@
-
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { PlusCircle, Search, Edit, Trash, Check, Lock } from "lucide-react";
+import { PlusCircle, Search, Edit, Trash, Check, Lock, Unlock } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { AppLayout } from "@/components/layout/app-layout";
@@ -40,7 +39,6 @@ export default function Users() {
   const { user: currentUser, updateGeniusStatus } = useAuth();
   const queryClient = useQueryClient();
 
-  // Verificar se o usuário atual é master
   useEffect(() => {
     if (currentUser?.role !== "master") {
       toast.error("Acesso negado. Apenas usuários master podem acessar esta página.");
@@ -48,13 +46,11 @@ export default function Users() {
     }
   }, [currentUser]);
 
-  // Carregar usuários
   const { data: users = [], isLoading } = useQuery({
     queryKey: ["users"],
     queryFn: userService.getAllUsers,
   });
 
-  // Mutation para deletar usuário
   const deleteUserMutation = useMutation({
     mutationFn: userService.deleteUser,
     onSuccess: () => {
@@ -66,7 +62,6 @@ export default function Users() {
     }
   });
 
-  // Mutation para aprovar acesso à Rede Genius
   const approveGeniusMutation = useMutation({
     mutationFn: (userId: string) => updateGeniusStatus(userId, "approved"),
     onSuccess: () => {
@@ -74,29 +69,24 @@ export default function Users() {
     }
   });
 
-  // Filtrar usuários pelo termo de busca
   const filteredUsers = users?.filter(user => 
     user.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
     user.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Função para abrir o dialog de edição
   const handleEditUser = (user: User) => {
     setSelectedUser(user);
     setIsDialogOpen(true);
   };
 
-  // Função para deletar usuário
   const handleDeleteUser = (userId: string) => {
     deleteUserMutation.mutate(userId);
   };
 
-  // Função para aprovar acesso à Rede Genius
   const handleApproveGenius = (userId: string) => {
     approveGeniusMutation.mutate(userId);
   };
 
-  // Função para renderizar o badge de acordo com o role
   const renderRoleBadge = (role: UserRole) => {
     switch (role) {
       case "master":
@@ -110,22 +100,37 @@ export default function Users() {
     }
   };
 
-  // Função para renderizar o botão de aprovação Genius
   const renderGeniusStatus = (user: User) => {
     if (user.geniusCoupon === "ALUNOREDEGENIUS") {
       if (user.geniusStatus === "approved") {
         return (
-          <Badge className="bg-blue-500 flex items-center gap-1">
-            <Check size={14} />
-            ALUNO
-          </Badge>
+          <Button
+            size="sm"
+            variant="outline"
+            className="bg-red-500 hover:bg-red-600 text-white text-xs px-2 py-1 h-auto"
+            onClick={() => updateGeniusStatus(user.id, "blocked")}
+          >
+            <Lock className="h-4 w-4 mr-1" />
+            BLOQUEAR ACESSO
+          </Button>
+        );
+      } else if (user.geniusStatus === "blocked") {
+        return (
+          <Button
+            size="sm"
+            className="bg-green-500 hover:bg-green-600 text-white text-xs px-2 py-1 h-auto"
+            onClick={() => updateGeniusStatus(user.id, "approved")}
+          >
+            <Unlock className="h-4 w-4 mr-1" />
+            LIBERAR ACESSO
+          </Button>
         );
       } else {
         return (
           <Button
             size="sm"
             className="bg-green-500 hover:bg-green-600 text-white text-xs px-2 py-1 h-auto"
-            onClick={() => handleApproveGenius(user.id)}
+            onClick={() => updateGeniusStatus(user.id, "approved")}
           >
             LIBERAR ACESSO
           </Button>
