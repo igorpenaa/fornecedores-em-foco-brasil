@@ -17,6 +17,10 @@ import NotFound from "./pages/NotFound";
 import Favorites from "./pages/Favorites";
 import Users from "./pages/Users";
 import GeniusNetwork from "./pages/GeniusNetwork";
+import Highlights from "./pages/Highlights";
+import Products from "./pages/Products";
+import Ads from "./pages/Ads";
+import Issues from "./pages/Issues";
 
 const queryClient = new QueryClient();
 
@@ -45,6 +49,12 @@ const App = () => (
                 <Route path="/categories" element={<Categories />} />
                 <Route path="/users" element={<Users />} />
                 <Route path="/genius-network" element={<GeniusNetwork />} />
+                
+                {/* Novas rotas de administração */}
+                <Route path="/highlights" element={<Highlights />} />
+                <Route path="/products" element={<Products />} />
+                <Route path="/ads" element={<Ads />} />
+                <Route path="/issues" element={<Issues />} />
                 
                 {/* Rota para 404 */}
                 <Route path="*" element={<NotFound />} />

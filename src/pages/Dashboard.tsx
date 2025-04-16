@@ -1,19 +1,46 @@
 
-import { useEffect } from "react";
-import { BarChart3, Package, PieChart, ShoppingBag, Star, Truck, Users } from "lucide-react";
+import { useEffect, useState } from "react";
+import { BarChart3, Clock, Package, PieChart, ShoppingBag, Star, Truck, Users } from "lucide-react";
 import { Link } from "react-router-dom";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useData } from "@/contexts/data-context";
 import { useAuth } from "@/contexts/auth-context";
+import { HighlightsCarousel } from "@/components/dashboard/highlights-carousel";
+import { ProductsShowcase } from "@/components/dashboard/products-showcase";
+import { AdsDisplay } from "@/components/dashboard/ads-display";
 
 export default function Dashboard() {
   const { categories, suppliers } = useData();
   const { user } = useAuth();
+  const [suppliersThisWeek, setSuppliersThisWeek] = useState(0);
+  
+  useEffect(() => {
+    // Calculate suppliers added this week
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    
+    const recentSuppliers = suppliers.filter(
+      supplier => new Date(supplier.createdAt) >= oneWeekAgo
+    ).length;
+    
+    setSuppliersThisWeek(recentSuppliers);
+  }, [suppliers]);
   
   return (
     <AppLayout title="Dashboard" subtitle="Visão geral do sistema">
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      {/* Ads Section */}
+      <div className="mb-6">
+        <AdsDisplay />
+      </div>
+      
+      {/* Highlights Carousel */}
+      <div className="mb-6 overflow-hidden rounded-lg">
+        <HighlightsCarousel />
+      </div>
+      
+      {/* Statistics Cards */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total de Fornecedores</CardTitle>
@@ -23,6 +50,19 @@ export default function Dashboard() {
             <div className="text-2xl font-bold">{suppliers.length}</div>
             <p className="text-xs text-muted-foreground">
               Fornecedores cadastrados no sistema
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Fornecedores esta semana</CardTitle>
+            <Clock className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{suppliersThisWeek}</div>
+            <p className="text-xs text-muted-foreground">
+              Novos fornecedores nos últimos 7 dias
             </p>
           </CardContent>
         </Card>
@@ -54,6 +94,12 @@ export default function Dashboard() {
         </Card>
       </div>
       
+      {/* Products Showcase */}
+      <div className="my-6">
+        <ProductsShowcase />
+      </div>
+      
+      {/* System Overview and Categories Chart */}
       <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-7">
         <Card className="col-span-4">
           <CardHeader>
@@ -77,7 +123,7 @@ export default function Dashboard() {
                 </div>
               </div>
               
-              {user?.role === "master" && (
+              {(user?.role === "master" || user?.role === "admin") && (
                 <>
                   <div className="flex items-center space-x-2 p-2 hover:bg-muted/50 rounded-md">
                     <Users className="h-5 w-5 text-primary" />
@@ -88,10 +134,34 @@ export default function Dashboard() {
                   </div>
                   
                   <div className="flex items-center space-x-2 p-2 hover:bg-muted/50 rounded-md">
+                    <Star className="h-5 w-5 text-primary" />
+                    <div className="flex-1">
+                      <Link to="/highlights" className="text-sm font-medium">Destaques</Link>
+                      <p className="text-xs text-muted-foreground">Gerencie os banners de destaque</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2 p-2 hover:bg-muted/50 rounded-md">
+                    <Package className="h-5 w-5 text-primary" />
+                    <div className="flex-1">
+                      <Link to="/products" className="text-sm font-medium">Produtos</Link>
+                      <p className="text-xs text-muted-foreground">Gerencie os produtos em destaque</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2 p-2 hover:bg-muted/50 rounded-md">
                     <BarChart3 className="h-5 w-5 text-primary" />
                     <div className="flex-1">
-                      <Link to="/analytics" className="text-sm font-medium">Análises</Link>
-                      <p className="text-xs text-muted-foreground">Acompanhe estatísticas e relatórios</p>
+                      <Link to="/ads" className="text-sm font-medium">Anúncios</Link>
+                      <p className="text-xs text-muted-foreground">Gerencie os anúncios do sistema</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2 p-2 hover:bg-muted/50 rounded-md">
+                    <Star className="h-5 w-5 text-primary" />
+                    <div className="flex-1">
+                      <Link to="/issues" className="text-sm font-medium">Termos de Avaliação</Link>
+                      <p className="text-xs text-muted-foreground">Gerencie os termos para avaliações negativas</p>
                     </div>
                   </div>
                 </>
@@ -137,42 +207,65 @@ export default function Dashboard() {
         </Card>
       </div>
       
-      <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <Card className="col-span-full">
+      {/* Top Rated Suppliers */}
+      <div className="mt-6">
+        <Card>
           <CardHeader>
-            <CardTitle>Últimos Fornecedores Adicionados</CardTitle>
+            <CardTitle>Fornecedores Mais Bem Avaliados</CardTitle>
+            <CardDescription>Fornecedores com as melhores avaliações</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-8">
-              {suppliers.slice(0, 3).map(supplier => {
-                // Get first category for display purposes
-                const categoryId = supplier.categoryIds && supplier.categoryIds.length > 0 ? 
-                  supplier.categoryIds[0] : undefined;
-                const category = categoryId ? categories.find(c => c.id === categoryId) : undefined;
-                
-                return (
-                  <div key={supplier.id} className="flex items-center">
-                    <div className="mr-4 flex h-12 w-12 items-center justify-center rounded-lg bg-muted/50">
-                      <img
-                        src={supplier.image}
-                        alt={supplier.name}
-                        className="h-10 w-10 rounded object-cover"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium leading-none">{supplier.name}</p>
-                      <div className="flex items-center text-xs text-muted-foreground">
-                        <span className="mr-2">{supplier.city}</span>
-                        {category && (
-                          <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold">
-                            {category.name}
-                          </span>
-                        )}
+            <div className="space-y-4">
+              {suppliers
+                .filter(s => s.averageRating && s.averageRating > 0)
+                .sort((a, b) => (b.averageRating || 0) - (a.averageRating || 0))
+                .slice(0, 5)
+                .map(supplier => {
+                  const categoryId = supplier.categoryIds && supplier.categoryIds.length > 0 ? 
+                    supplier.categoryIds[0] : undefined;
+                  const category = categoryId ? categories.find(c => c.id === categoryId) : undefined;
+                  
+                  return (
+                    <div key={supplier.id} className="flex items-center justify-between">
+                      <div className="flex items-center space-x-4">
+                        <div className="h-10 w-10 overflow-hidden rounded-full">
+                          <img 
+                            src={supplier.image} 
+                            alt={supplier.name} 
+                            className="h-full w-full object-cover"
+                          />
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-medium">{supplier.name}</h3>
+                          <p className="text-xs text-muted-foreground">
+                            {supplier.city} {category && `• ${category.name}`}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center">
+                        <div className="flex mr-2">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <Star
+                              key={star}
+                              className={`h-4 w-4 ${star <= (supplier.averageRating || 0) 
+                                ? "text-yellow-400 fill-yellow-400" 
+                                : "text-gray-300"}`}
+                            />
+                          ))}
+                        </div>
+                        <span className="text-sm font-medium">
+                          {supplier.averageRating?.toFixed(1) || "N/A"}
+                        </span>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              
+              {suppliers.filter(s => s.averageRating && s.averageRating > 0).length === 0 && (
+                <p className="text-center text-sm text-muted-foreground py-4">
+                  Nenhum fornecedor foi avaliado ainda
+                </p>
+              )}
             </div>
           </CardContent>
         </Card>
