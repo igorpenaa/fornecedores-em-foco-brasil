@@ -20,6 +20,7 @@ interface DataContextType {
   uploadCategoryImage: (id: string, file: File) => Promise<string>;
   uploadSupplierImage: (id: string, file: File) => Promise<string>;
   refreshData: () => Promise<void>;
+  rateSupplier: (supplierId: string, rating: number, comment: string, issues: string[]) => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -240,6 +241,56 @@ export function DataProvider({ children }: { children: ReactNode }) {
     await fetchData();
   };
 
+  const rateSupplier = async (supplierId: string, rating: number, comment: string, issues: string[]) => {
+    try {
+      const supplier = suppliers.find(s => s.id === supplierId);
+      
+      if (!supplier) {
+        throw new Error("Fornecedor não encontrado");
+      }
+      
+      const newRating = {
+        id: Date.now().toString(),
+        userId: user?.id || "",
+        userName: user?.displayName || user?.email || "Usuário",
+        rating,
+        comment,
+        issueIds: issues,
+        createdAt: new Date(),
+      };
+      
+      const updatedRatings = [...(supplier.ratings || []), newRating];
+      const totalRating = updatedRatings.reduce((sum, r) => sum + r.rating, 0);
+      const averageRating = totalRating / updatedRatings.length;
+      
+      const updatedSupplier = {
+        ...supplier,
+        ratings: updatedRatings,
+        averageRating
+      };
+      
+      await supplierService.updateSupplier(supplierId, {
+        ratings: updatedRatings,
+        averageRating
+      });
+      
+      setSuppliers(prev => prev.map(s => s.id === supplierId ? updatedSupplier : s));
+      
+      toast({
+        title: "Avaliação enviada",
+        description: "Sua avaliação foi registrada com sucesso!"
+      });
+    } catch (error) {
+      console.error("Erro ao avaliar fornecedor:", error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao avaliar",
+        description: "Não foi possível registrar sua avaliação. Tente novamente."
+      });
+      throw error;
+    }
+  };
+
   return (
     <DataContext.Provider value={{
       categories,
@@ -255,7 +306,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       filterSuppliersByCategory,
       uploadCategoryImage,
       uploadSupplierImage,
-      refreshData
+      refreshData,
+      rateSupplier
     }}>
       {children}
     </DataContext.Provider>
