@@ -33,6 +33,7 @@ class HighlightService {
 
   async addHighlight(highlight: Omit<Highlight, "id" | "createdAt">): Promise<Highlight> {
     try {
+      console.log("Adding highlight:", highlight);
       const docRef = await addDoc(collection(db, this.collection), {
         ...highlight,
         createdAt: Timestamp.now()
@@ -51,6 +52,7 @@ class HighlightService {
 
   async updateHighlight(id: string, highlight: Partial<Highlight>): Promise<Highlight> {
     try {
+      console.log("Updating highlight:", id, highlight);
       const docRef = doc(db, this.collection, id);
       const updateData = { ...highlight };
       
@@ -75,6 +77,7 @@ class HighlightService {
     }
   }
 
+  // Este método é mantido para compatibilidade, mas não será mais usado
   async uploadHighlightMedia(file: File): Promise<{publicId: string, url: string, mediaType: 'image' | 'video'}> {
     try {
       // Create a unique filename

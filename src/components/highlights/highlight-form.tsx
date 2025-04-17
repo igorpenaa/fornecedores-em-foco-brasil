@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2 } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
+import { CloudinaryUploader } from "@/components/uploads/CloudinaryUploader";
 
 const formSchema = z.object({
   title: z.string().min(3, "O título deve ter pelo menos 3 caracteres"),
@@ -30,9 +31,8 @@ interface HighlightFormProps {
 export function HighlightForm({ highlight, onClose }: HighlightFormProps) {
   const [uploading, setUploading] = useState(false);
   const [mediaType, setMediaType] = useState<'image' | 'video'>(highlight?.mediaType || 'image');
-  const [mediaFile, setMediaFile] = useState<File | null>(null);
-  const [mediaPreview, setMediaPreview] = useState<string>(highlight?.mediaUrl || '');
-  const { addHighlight, updateHighlight, uploadHighlightMedia } = useData();
+  const [mediaUrl, setMediaUrl] = useState<string>(highlight?.mediaUrl || '');
+  const { addHighlight, updateHighlight } = useData();
   const { toast } = useToast();
 
   const form = useForm<FormValues>({
@@ -45,98 +45,41 @@ export function HighlightForm({ highlight, onClose }: HighlightFormProps) {
     },
   });
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    
-    if (!file) return;
-    
-    // Validate file type
-    if (mediaType === 'image' && !file.type.startsWith('image/')) {
-      toast({
-        variant: "destructive",
-        title: "Formato inválido",
-        description: "Por favor selecione um arquivo de imagem.",
-      });
-      return;
-    }
-    
-    if (mediaType === 'video' && !file.type.startsWith('video/')) {
-      toast({
-        variant: "destructive",
-        title: "Formato inválido",
-        description: "Por favor selecione um arquivo de vídeo.",
-      });
-      return;
-    }
-    
-    // Validate file size (10MB max)
-    if (file.size > 10 * 1024 * 1024) {
-      toast({
-        variant: "destructive",
-        title: "Arquivo muito grande",
-        description: "O tamanho máximo permitido é 10MB.",
-      });
-      return;
-    }
-    
-    setMediaFile(file);
-    
-    // Create a preview
-    const url = URL.createObjectURL(file);
-    setMediaPreview(url);
+  const handleUploadSuccess = (url: string, type: 'image' | 'video') => {
+    console.log("Upload bem-sucedido:", url, type);
+    setMediaUrl(url);
+    toast({
+      title: "Upload concluído",
+      description: "Arquivo enviado com sucesso!",
+    });
   };
 
-  const uploadMedia = async () => {
-    if (!mediaFile) {
-      // If we're editing and not changing the media
-      if (highlight?.mediaUrl) {
-        return {
-          url: highlight.mediaUrl,
-          publicId: highlight.mediaUrl.split('/').pop() || '',
-          mediaType: highlight.mediaType
-        };
-      }
-      
-      throw new Error("Nenhum arquivo selecionado");
-    }
-    
-    setUploading(true);
-    
-    try {
-      const result = await uploadHighlightMedia(mediaFile);
-      return result;
-    } catch (error) {
-      console.error("Erro ao fazer upload:", error);
-      throw error;
-    } finally {
-      setUploading(false);
-    }
+  const handleUploadError = (error: string) => {
+    console.error("Erro no upload:", error);
+    toast({
+      variant: "destructive",
+      title: "Erro no upload",
+      description: error,
+    });
   };
 
   const onSubmit = async (data: FormValues) => {
     try {
-      setUploading(true);
-      
-      // First upload the media if there is a new file
-      let mediaData;
-      if (mediaFile || !highlight) {
-        try {
-          mediaData = await uploadMedia();
-        } catch (error) {
-          toast({
-            variant: "destructive",
-            title: "Erro no upload",
-            description: "Não foi possível fazer o upload do arquivo. Tente novamente.",
-          });
-          setUploading(false);
-          return;
-        }
+      if (!mediaUrl && !highlight?.mediaUrl) {
+        toast({
+          variant: "destructive",
+          title: "Mídia obrigatória",
+          description: "Por favor, faça o upload de uma mídia para o destaque.",
+        });
+        return;
       }
+
+      setUploading(true);
       
       const highlightData = {
         title: data.title,
         description: data.description,
-        mediaUrl: mediaData?.url || highlight?.mediaUrl || '',
+        mediaUrl: mediaUrl || highlight?.mediaUrl || '',
         mediaType,
         link: data.link || '',
         transitionDelay: data.transitionDelay
@@ -255,35 +198,13 @@ export function HighlightForm({ highlight, onClose }: HighlightFormProps) {
         </div>
         
         <div className="space-y-3">
-          <FormLabel>Arquivo {mediaType === 'image' ? 'de Imagem' : 'de Vídeo'}</FormLabel>
-          <div className="flex flex-col space-y-4">
-            <Input 
-              type="file" 
-              accept={mediaType === 'image' ? "image/*" : "video/*"} 
-              onChange={handleFileChange}
-            />
-            <FormDescription>
-              Selecione um {mediaType === 'image' ? 'arquivo de imagem' : 'arquivo de vídeo'} de até 10MB.
-            </FormDescription>
-          </div>
-          
-          {mediaPreview && (
-            <div className="mt-4 border rounded-md overflow-hidden">
-              {mediaType === 'image' ? (
-                <img 
-                  src={mediaPreview} 
-                  alt="Preview" 
-                  className="w-full h-48 object-cover"
-                />
-              ) : (
-                <video 
-                  src={mediaPreview} 
-                  controls 
-                  className="w-full h-48 object-cover"
-                />
-              )}
-            </div>
-          )}
+          <FormLabel>Upload de {mediaType === 'image' ? 'Imagem' : 'Vídeo'}</FormLabel>
+          <CloudinaryUploader
+            mediaType={mediaType}
+            initialPreview={highlight?.mediaUrl}
+            onUploadSuccess={handleUploadSuccess}
+            onUploadError={handleUploadError}
+          />
         </div>
         
         <div className="flex justify-end space-x-4 pt-4 sticky bottom-0 bg-background pb-2">
