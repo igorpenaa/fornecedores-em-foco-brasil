@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { 
   Carousel,
   CarouselContent,
@@ -9,48 +9,16 @@ import {
 } from "@/components/ui/carousel";
 import { useAuth } from "@/contexts/auth-context";
 import { Highlight } from "@/types";
+import { useData } from "@/contexts/data-context";
+import { AdvancedImage, lazyload } from "@cloudinary/react";
+import { getOptimizedImage, getOptimizedVideo } from "@/utils/cloudinary";
 
 export function HighlightsCarousel() {
-  const [highlights, setHighlights] = useState<Highlight[]>([]);
   const [api, setApi] = useState<any>();
   const [current, setCurrent] = useState(0);
   const { user } = useAuth();
-
-  // Mock data for highlights - in a real app you would fetch this from a database
-  useEffect(() => {
-    // Mocked highlights data
-    const mockHighlights: Highlight[] = [
-      {
-        id: "1",
-        title: "Desbloquie o futuro",
-        description: "Seu novo smartphone com até 30% OFF",
-        mediaUrl: "https://picsum.photos/seed/highlight1/1200/400",
-        mediaType: "image",
-        link: "#",
-        createdAt: new Date()
-      },
-      {
-        id: "2",
-        title: "Promoção Especial",
-        description: "Os melhores fornecedores com descontos exclusivos",
-        mediaUrl: "https://picsum.photos/seed/highlight2/1200/400",
-        mediaType: "image",
-        link: "#",
-        createdAt: new Date()
-      },
-      {
-        id: "3",
-        title: "Produtos de Qualidade",
-        description: "Encontre os melhores produtos para o seu negócio",
-        mediaUrl: "https://picsum.photos/seed/highlight3/1200/400",
-        mediaType: "image",
-        link: "#",
-        createdAt: new Date()
-      }
-    ];
-    
-    setHighlights(mockHighlights);
-  }, []);
+  const { highlights } = useData();
+  const autoplayTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (!api) return;
@@ -61,6 +29,34 @@ export function HighlightsCarousel() {
       setCurrent(api.selectedScrollSnap());
     });
   }, [api]);
+
+  // Initialize automatic sliding
+  useEffect(() => {
+    if (!api || highlights.length <= 1) return;
+    
+    const setupTimer = () => {
+      if (autoplayTimerRef.current) {
+        clearTimeout(autoplayTimerRef.current);
+      }
+      
+      const currentHighlight = highlights[current];
+      const delay = (currentHighlight?.transitionDelay || 5) * 1000;
+      
+      autoplayTimerRef.current = setTimeout(() => {
+        const nextIndex = (current + 1) % highlights.length;
+        api.scrollTo(nextIndex);
+      }, delay);
+    };
+    
+    setupTimer();
+    
+    // Clear timer on component unmount
+    return () => {
+      if (autoplayTimerRef.current) {
+        clearTimeout(autoplayTimerRef.current);
+      }
+    };
+  }, [api, current, highlights]);
 
   if (highlights.length === 0) {
     return null;

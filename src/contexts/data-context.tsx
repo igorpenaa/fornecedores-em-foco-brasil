@@ -1,13 +1,15 @@
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
-import { Category, Supplier, Rating } from "@/types";
+import { Category, Supplier, Rating, Highlight } from "@/types";
 import { useAuth } from "./auth-context";
 import { useToast } from "@/hooks/use-toast";
 import { categoryService } from "@/services/category-service";
 import { supplierService } from "@/services/supplier-service";
+import { highlightService } from "@/services/highlight-service";
 
 interface DataContextType {
   categories: Category[];
   suppliers: Supplier[];
+  highlights: Highlight[];
   addCategory: (category: Omit<Category, "id" | "createdAt" | "updatedAt">) => Promise<void>;
   updateCategory: (id: string, category: Partial<Category>) => Promise<void>;
   deleteCategory: (id: string) => Promise<void>;
@@ -21,6 +23,10 @@ interface DataContextType {
   uploadSupplierImage: (id: string, file: File) => Promise<string>;
   refreshData: () => Promise<void>;
   rateSupplier: (supplierId: string, rating: number, comment: string, issues: string[]) => Promise<void>;
+  addHighlight: (highlight: Omit<Highlight, "id" | "createdAt">) => Promise<void>;
+  updateHighlight: (id: string, highlight: Partial<Highlight>) => Promise<void>;
+  deleteHighlight: (id: string) => Promise<void>;
+  uploadHighlightMedia: (file: File) => Promise<{publicId: string, url: string, mediaType: 'image' | 'video'}>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -28,6 +34,7 @@ const DataContext = createContext<DataContextType | undefined>(undefined);
 export function DataProvider({ children }: { children: ReactNode }) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [highlights, setHighlights] = useState<Highlight[]>([]);
   const { user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
@@ -35,13 +42,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [categoriesData, suppliersData] = await Promise.all([
+      const [categoriesData, suppliersData, highlightsData] = await Promise.all([
         categoryService.getAllCategories(),
         supplierService.getAllSuppliers(),
+        highlightService.getAllHighlights(),
       ]);
       
       setCategories(categoriesData);
       setSuppliers(suppliersData);
+      setHighlights(highlightsData);
     } catch (error) {
       console.error("Erro ao carregar dados:", error);
       toast({
@@ -307,10 +316,85 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const addHighlight = async (highlight: Omit<Highlight, "id" | "createdAt">) => {
+    try {
+      const newHighlight = await highlightService.addHighlight(highlight);
+      setHighlights(prev => [newHighlight, ...prev]);
+      toast({
+        title: "Destaque adicionado",
+        description: "O destaque foi adicionado com sucesso.",
+      });
+    } catch (error) {
+      console.error("Erro ao adicionar destaque:", error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao adicionar destaque",
+        description: "Não foi possível adicionar o destaque. Tente novamente.",
+      });
+      throw error;
+    }
+  };
+
+  const updateHighlight = async (id: string, highlight: Partial<Highlight>) => {
+    try {
+      const updatedHighlight = await highlightService.updateHighlight(id, highlight);
+      setHighlights(prev => 
+        prev.map(h => h.id === id ? { ...h, ...updatedHighlight } : h)
+      );
+      toast({
+        title: "Destaque atualizado",
+        description: "O destaque foi atualizado com sucesso.",
+      });
+    } catch (error) {
+      console.error("Erro ao atualizar destaque:", error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao atualizar destaque",
+        description: "Não foi possível atualizar o destaque. Tente novamente.",
+      });
+      throw error;
+    }
+  };
+
+  const deleteHighlight = async (id: string) => {
+    try {
+      await highlightService.deleteHighlight(id);
+      setHighlights(prev => prev.filter(h => h.id !== id));
+      toast({
+        title: "Destaque excluído",
+        description: "O destaque foi excluído com sucesso.",
+      });
+    } catch (error) {
+      console.error("Erro ao excluir destaque:", error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao excluir destaque",
+        description: "Não foi possível excluir o destaque. Tente novamente.",
+      });
+      throw error;
+    }
+  };
+
+  const uploadHighlightMedia = async (file: File) => {
+    try {
+      const result = await highlightService.uploadHighlightMedia(file);
+      return result;
+    } catch (error) {
+      console.error("Erro ao fazer upload da mídia:", error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao fazer upload",
+        description: "Não foi possível fazer o upload da mídia. Tente novamente.",
+      });
+      throw error;
+    }
+  };
+
   return (
     <DataContext.Provider value={{
       categories,
       suppliers,
+      highlights,
       addCategory,
       updateCategory,
       deleteCategory,
@@ -323,7 +407,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
       uploadCategoryImage,
       uploadSupplierImage,
       refreshData,
-      rateSupplier
+      rateSupplier,
+      addHighlight,
+      updateHighlight,
+      deleteHighlight,
+      uploadHighlightMedia
     }}>
       {children}
     </DataContext.Provider>

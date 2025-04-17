@@ -54,6 +54,7 @@ export interface Highlight {
   mediaType: 'image' | 'video';
   link?: string;
   createdAt: Date;
+  transitionDelay?: number; // Delay in seconds before moving to the next slide
 }
 
 export interface Product {
