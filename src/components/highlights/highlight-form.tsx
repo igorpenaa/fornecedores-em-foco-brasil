@@ -9,11 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Upload } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
-import { AdvancedImage } from "@cloudinary/react";
-import { getOptimizedImage } from "@/utils/cloudinary";
 
 const formSchema = z.object({
   title: z.string().min(3, "O título deve ter pelo menos 3 caracteres"),
@@ -34,7 +32,6 @@ export function HighlightForm({ highlight, onClose }: HighlightFormProps) {
   const [mediaType, setMediaType] = useState<'image' | 'video'>(highlight?.mediaType || 'image');
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [mediaPreview, setMediaPreview] = useState<string>(highlight?.mediaUrl || '');
-  const [mediaPublicId, setMediaPublicId] = useState<string>('');
   const { addHighlight, updateHighlight, uploadHighlightMedia } = useData();
   const { toast } = useToast();
 
@@ -108,6 +105,9 @@ export function HighlightForm({ highlight, onClose }: HighlightFormProps) {
     try {
       const result = await uploadHighlightMedia(mediaFile);
       return result;
+    } catch (error) {
+      console.error("Erro ao fazer upload:", error);
+      throw error;
     } finally {
       setUploading(false);
     }
@@ -115,35 +115,59 @@ export function HighlightForm({ highlight, onClose }: HighlightFormProps) {
 
   const onSubmit = async (data: FormValues) => {
     try {
+      setUploading(true);
+      
       // First upload the media if there is a new file
       let mediaData;
       if (mediaFile || !highlight) {
-        mediaData = await uploadMedia();
+        try {
+          mediaData = await uploadMedia();
+        } catch (error) {
+          toast({
+            variant: "destructive",
+            title: "Erro no upload",
+            description: "Não foi possível fazer o upload do arquivo. Tente novamente.",
+          });
+          setUploading(false);
+          return;
+        }
       }
       
       const highlightData = {
-        title: data.title, // Ensure title is included and non-optional
+        title: data.title,
         description: data.description,
         mediaUrl: mediaData?.url || highlight?.mediaUrl || '',
         mediaType,
-        link: data.link,
+        link: data.link || '',
         transitionDelay: data.transitionDelay
       };
       
+      console.log("Salvando destaque:", highlightData);
+      
       if (highlight) {
         await updateHighlight(highlight.id, highlightData);
+        toast({
+          title: "Destaque atualizado",
+          description: "O destaque foi atualizado com sucesso.",
+        });
       } else {
         await addHighlight(highlightData);
+        toast({
+          title: "Destaque adicionado",
+          description: "O destaque foi adicionado com sucesso.",
+        });
       }
       
       onClose();
     } catch (error) {
-      console.error("Error saving highlight:", error);
+      console.error("Erro ao salvar destaque:", error);
       toast({
         variant: "destructive",
         title: "Erro ao salvar",
         description: "Não foi possível salvar o destaque. Tente novamente.",
       });
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -262,7 +286,7 @@ export function HighlightForm({ highlight, onClose }: HighlightFormProps) {
           )}
         </div>
         
-        <div className="flex justify-end space-x-4">
+        <div className="flex justify-end space-x-4 pt-4 sticky bottom-0 bg-background pb-2">
           <Button type="button" variant="outline" onClick={onClose}>
             Cancelar
           </Button>
