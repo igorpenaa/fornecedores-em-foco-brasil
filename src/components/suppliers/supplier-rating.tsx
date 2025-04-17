@@ -7,16 +7,18 @@ import { StarRating } from "@/components/ratings/star-rating";
 import { RatingDialog } from "@/components/ratings/rating-dialog";
 import { useAuth } from "@/contexts/auth-context";
 import { useToast } from "@/hooks/use-toast";
+import { useData } from "@/contexts/data-context";
 
 interface SupplierRatingProps {
   supplier: Supplier;
-  onRateSupplier: (supplierId: string, rating: number, comment: string, issues: string[]) => Promise<void>;
+  onRateSupplier?: (supplierId: string, rating: number, comment: string, issues: string[]) => Promise<void>;
 }
 
 export function SupplierRating({ supplier, onRateSupplier }: SupplierRatingProps) {
   const [isRatingDialogOpen, setIsRatingDialogOpen] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
+  const { rateSupplier } = useData();
   
   const handleRateClick = () => {
     if (!user) {
@@ -29,6 +31,16 @@ export function SupplierRating({ supplier, onRateSupplier }: SupplierRatingProps
     }
     
     setIsRatingDialogOpen(true);
+  };
+  
+  // Default implementation that uses the context's rateSupplier
+  const handleSubmitRating = async (supplierId: string, rating: number, comment: string, issues: string[]) => {
+    if (onRateSupplier) {
+      return onRateSupplier(supplierId, rating, comment, issues);
+    }
+    
+    // Default implementation using the data context
+    return rateSupplier(supplierId, rating, comment, issues);
   };
   
   // Helper function to format the average rating
@@ -71,7 +83,7 @@ export function SupplierRating({ supplier, onRateSupplier }: SupplierRatingProps
         supplier={supplier}
         isOpen={isRatingDialogOpen}
         onClose={() => setIsRatingDialogOpen(false)}
-        onSubmit={onRateSupplier}
+        onSubmit={handleSubmitRating}
       />
     </div>
   );
