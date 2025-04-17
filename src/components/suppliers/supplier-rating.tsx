@@ -53,6 +53,17 @@ export function SupplierRating({ supplier, onRateSupplier }: SupplierRatingProps
   const getRatingCount = () => {
     return supplier.ratings?.length || 0;
   };
+
+  // Check if the current user has already rated this supplier
+  const hasUserRated = () => {
+    if (!user || !supplier.ratings) return false;
+    return supplier.ratings.some(rating => rating.userId === user.id);
+  };
+  
+  // Get button text based on whether user has already rated
+  const getButtonText = () => {
+    return hasUserRated() ? "Reavaliar" : "Avaliar";
+  };
   
   return (
     <div className="flex flex-col space-y-1">
@@ -75,7 +86,7 @@ export function SupplierRating({ supplier, onRateSupplier }: SupplierRatingProps
           className="h-8 px-2 text-xs" 
           onClick={handleRateClick}
         >
-          Avaliar
+          {getButtonText()}
         </Button>
       </div>
       

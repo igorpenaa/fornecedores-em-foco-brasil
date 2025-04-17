@@ -45,6 +45,24 @@ export function RatingDialog({ supplier, isOpen, onClose, onSubmit }: RatingDial
     setIssues(mockIssues);
   }, []);
 
+  // Load existing rating if the user is re-rating
+  useEffect(() => {
+    if (user && supplier.ratings && isOpen) {
+      const existingRating = supplier.ratings.find(r => r.userId === user.id);
+      
+      if (existingRating) {
+        setRating(existingRating.rating);
+        setComment(existingRating.comment || "");
+        setSelectedIssues(existingRating.issues || []);
+      } else {
+        // Reset form for new ratings
+        setRating(0);
+        setComment("");
+        setSelectedIssues([]);
+      }
+    }
+  }, [user, supplier, isOpen]);
+
   const handleRatingChange = (newRating: number) => {
     setRating(newRating);
   };
@@ -84,9 +102,6 @@ export function RatingDialog({ supplier, isOpen, onClose, onSubmit }: RatingDial
         description: "Obrigado por compartilhar sua opinião!"
       });
       // Reset form
-      setRating(0);
-      setComment("");
-      setSelectedIssues([]);
       onClose();
     } catch (error) {
       toast({

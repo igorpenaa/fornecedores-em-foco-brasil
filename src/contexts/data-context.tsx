@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { Category, Supplier, Rating } from "@/types";
 import { useAuth } from "./auth-context";
@@ -250,22 +249,36 @@ export function DataProvider({ children }: { children: ReactNode }) {
         throw new Error("Fornecedor não encontrado");
       }
       
-      const newRating: Rating = {
-        id: Date.now().toString(),
-        userId: user?.id || "",
-        userName: user?.name || user?.email || "Usuário",
-        supplierId: supplierId,
-        rating,
-        comment,
-        issues,
-        createdAt: new Date(),
-      };
+      const existingRatings = supplier.ratings || [];
+      const userRatingIndex = existingRatings.findIndex(r => r.userId === user?.id);
+      let updatedRatings: Rating[];
       
-      const updatedRatings: Rating[] = [...(supplier.ratings || []), newRating];
+      if (userRatingIndex >= 0) {
+        updatedRatings = [...existingRatings];
+        updatedRatings[userRatingIndex] = {
+          ...updatedRatings[userRatingIndex],
+          rating,
+          comment,
+          issues,
+        };
+      } else {
+        const newRating: Rating = {
+          id: Date.now().toString(),
+          userId: user?.id || "",
+          userName: user?.name || user?.email || "Usuário",
+          supplierId: supplierId,
+          rating,
+          comment,
+          issues,
+          createdAt: new Date(),
+        };
+        
+        updatedRatings = [...existingRatings, newRating];
+      }
+      
       const totalRating = updatedRatings.reduce((sum, r) => sum + r.rating, 0);
       const averageRating = totalRating / updatedRatings.length;
       
-      // Create an updated supplier object with the proper types
       const updatedSupplier: Supplier = {
         ...supplier,
         ratings: updatedRatings,
@@ -280,8 +293,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setSuppliers(prev => prev.map(s => s.id === supplierId ? updatedSupplier : s));
       
       toast({
-        title: "Avaliação enviada",
-        description: "Sua avaliação foi registrada com sucesso!"
+        title: userRatingIndex >= 0 ? "Avaliação atualizada" : "Avaliação enviada",
+        description: userRatingIndex >= 0 ? "Sua avaliação foi atualizada com sucesso!" : "Sua avaliação foi registrada com sucesso!"
       });
     } catch (error) {
       console.error("Erro ao avaliar fornecedor:", error);
