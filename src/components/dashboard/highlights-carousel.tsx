@@ -10,8 +10,6 @@ import {
 import { useAuth } from "@/contexts/auth-context";
 import { Highlight } from "@/types";
 import { useData } from "@/contexts/data-context";
-import { AdvancedImage, lazyload } from "@cloudinary/react";
-import { getOptimizedImage, getOptimizedVideo } from "@/utils/cloudinary";
 
 export function HighlightsCarousel() {
   const [api, setApi] = useState<any>();

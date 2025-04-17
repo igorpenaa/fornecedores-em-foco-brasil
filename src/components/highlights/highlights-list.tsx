@@ -12,8 +12,6 @@ import { Button } from "@/components/ui/button";
 import { Edit, Trash2, ExternalLink } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { AdvancedImage } from "@cloudinary/react";
-import { getOptimizedImage } from "@/utils/cloudinary";
 
 interface HighlightsListProps {
   highlights: Highlight[];

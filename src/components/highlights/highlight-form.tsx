@@ -122,9 +122,12 @@ export function HighlightForm({ highlight, onClose }: HighlightFormProps) {
       }
       
       const highlightData = {
-        ...data,
+        title: data.title, // Ensure title is included and non-optional
+        description: data.description,
         mediaUrl: mediaData?.url || highlight?.mediaUrl || '',
         mediaType,
+        link: data.link,
+        transitionDelay: data.transitionDelay
       };
       
       if (highlight) {
