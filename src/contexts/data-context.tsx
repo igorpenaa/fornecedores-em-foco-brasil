@@ -1,5 +1,6 @@
+
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
-import { Category, Supplier } from "@/types";
+import { Category, Supplier, Rating } from "@/types";
 import { useAuth } from "./auth-context";
 import { useToast } from "@/hooks/use-toast";
 import { categoryService } from "@/services/category-service";
@@ -249,21 +250,23 @@ export function DataProvider({ children }: { children: ReactNode }) {
         throw new Error("Fornecedor não encontrado");
       }
       
-      const newRating = {
+      const newRating: Rating = {
         id: Date.now().toString(),
         userId: user?.id || "",
-        userName: user?.displayName || user?.email || "Usuário",
+        userName: user?.name || user?.email || "Usuário",
+        supplierId: supplierId,
         rating,
         comment,
-        issueIds: issues,
+        issues,
         createdAt: new Date(),
       };
       
-      const updatedRatings = [...(supplier.ratings || []), newRating];
+      const updatedRatings: Rating[] = [...(supplier.ratings || []), newRating];
       const totalRating = updatedRatings.reduce((sum, r) => sum + r.rating, 0);
       const averageRating = totalRating / updatedRatings.length;
       
-      const updatedSupplier = {
+      // Create an updated supplier object with the proper types
+      const updatedSupplier: Supplier = {
         ...supplier,
         ratings: updatedRatings,
         averageRating
