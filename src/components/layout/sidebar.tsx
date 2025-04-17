@@ -10,7 +10,8 @@ import {
   Menu,
   Package,
   Heart,
-  UsersRound
+  UsersRound,
+  Star
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -239,6 +240,14 @@ function SidebarContent({ collapsed, setCollapsed }: SidebarProps) {
             active={location.pathname === "/users"}
             permissionLevel={["master"]}
           />
+          {user?.role === "master" || user?.role === "admin" ? (
+            <SidebarLink
+              href="/highlights"
+              icon={Star}
+              title="Destaques"
+              active={location.pathname === "/highlights"}
+            />
+          ) : null}
           <div className="mt-auto flex items-center justify-between py-2">
             <Button
               variant="ghost"
