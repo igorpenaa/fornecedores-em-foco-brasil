@@ -17,4 +17,5 @@ export interface AuthContextType {
   canAccessGenius: () => boolean;
   refreshSubscription: () => Promise<UserSubscription | null>;
   hasAccessToCategory: (categoryId: string) => Promise<boolean>;
+  canAccessApp: () => boolean;
 }

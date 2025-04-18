@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Boxes,
   ChevronLeft,
@@ -11,13 +11,15 @@ import {
   Package,
   Heart,
   UsersRound,
-  Star
+  Star,
+  AlertCircle
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { useAuth } from "@/contexts/auth-context";
 import { UserRole } from "@/types";
+import { useToast } from "@/hooks/use-toast";
 
 export function MobileSidebar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -50,6 +52,7 @@ interface SidebarLinkProps {
   title: string;
   active?: boolean;
   permissionLevel?: UserRole[];
+  requiresSubscription?: boolean;
 }
 
 export interface SidebarProps {
@@ -64,17 +67,49 @@ function SidebarLink({
   title,
   active,
   permissionLevel,
+  requiresSubscription = true,
 }: SidebarLinkProps) {
-  const { hasPermission } = useAuth();
+  const { hasPermission, canAccessApp } = useAuth();
+  const { toast } = useToast();
+  const navigate = useNavigate();
 
-  if (permissionLevel && !hasPermission(permissionLevel)) {
-    return null;
-  }
+  const hasAccess = 
+    (!permissionLevel || hasPermission(permissionLevel)) && 
+    (!requiresSubscription || canAccessApp());
+
+  const handleClick = (e: React.MouseEvent) => {
+    if (!hasAccess) {
+      e.preventDefault();
+      if (permissionLevel && !hasPermission(permissionLevel)) {
+        toast({
+          variant: "destructive",
+          title: "Acesso restrito",
+          description: "Você não tem permissão para acessar esta funcionalidade."
+        });
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Assinatura necessária",
+          description: "É necessário escolher um plano para acessar esta funcionalidade.",
+          action: (
+            <Button size="sm" variant="outline" onClick={() => navigate("/plans")}>
+              Ver planos
+            </Button>
+          )
+        });
+      }
+    }
+  };
 
   return (
     <Link
-      to={href}
-      className={`flex items-center gap-2 rounded-lg px-3 py-2 text-base transition-all hover:text-primary ${
+      to={hasAccess ? href : "#"}
+      onClick={handleClick}
+      className={`flex items-center gap-2 rounded-lg px-3 py-2 text-base transition-all ${
+        !hasAccess 
+          ? "cursor-not-allowed opacity-60" 
+          : "hover:text-primary"
+      } ${
         active
           ? "bg-muted font-medium text-primary"
           : "text-muted-foreground"
@@ -168,9 +203,10 @@ function SidebarContent({ collapsed, setCollapsed }: SidebarProps) {
           {user?.geniusCoupon && (
             <SidebarLink
               href="/genius-network"
-              icon={Menu}
+              icon={AlertCircle}
               title="REDE GENIUS"
               active={location.pathname === "/genius-network"}
+              requiresSubscription={false}
             />
           )}
           <div className="mt-auto">
@@ -214,24 +250,28 @@ function SidebarContent({ collapsed, setCollapsed }: SidebarProps) {
             icon={Home}
             title="Dashboard"
             active={location.pathname === "/dashboard"}
+            requiresSubscription={true}
           />
           <SidebarLink
             href="/suppliers"
             icon={Boxes}
             title="Fornecedores"
             active={location.pathname === "/suppliers"}
+            requiresSubscription={true}
           />
           <SidebarLink
             href="/favorites"
             icon={Heart}
             title="Favoritos"
             active={location.pathname === "/favorites"}
+            requiresSubscription={true}
           />
           <SidebarLink
             href="/categories"
             icon={LayoutGrid}
             title="Categorias"
             active={location.pathname === "/categories"}
+            requiresSubscription={true}
           />
           <SidebarLink
             href="/users"
@@ -239,6 +279,7 @@ function SidebarContent({ collapsed, setCollapsed }: SidebarProps) {
             title="Usuários"
             active={location.pathname === "/users"}
             permissionLevel={["master"]}
+            requiresSubscription={false}
           />
           {user?.role === "master" || user?.role === "admin" ? (
             <SidebarLink
@@ -246,6 +287,7 @@ function SidebarContent({ collapsed, setCollapsed }: SidebarProps) {
               icon={Star}
               title="Destaques"
               active={location.pathname === "/highlights"}
+              requiresSubscription={false}
             />
           ) : null}
           <div className="mt-auto flex items-center justify-between py-2">

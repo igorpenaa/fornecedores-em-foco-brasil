@@ -92,7 +92,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshSubscription = async () => {
     if (!user) {
       setSubscription(null);
-      return;
+      return null;
+    }
+
+    // Usuários admin ou master não precisam de assinatura
+    if (user.role === "admin" || user.role === "master") {
+      // Criar uma assinatura virtual para admin/master com acesso total
+      const adminSubscription = {
+        userId: user.id,
+        planType: "annual" as const,
+        status: "active" as const,
+        startDate: new Date(),
+        endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 10)),
+        selectedCategories: []
+      };
+      setSubscription(adminSubscription);
+      return adminSubscription;
     }
 
     try {
@@ -111,6 +126,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Nova função para verificar se o usuário pode acessar o sistema
+  const canAccessApp = (): boolean => {
+    if (!user) return false;
+    
+    // Usuários admin ou master têm acesso total
+    if (user.role === "admin" || user.role === "master") return true;
+    
+    // Para outros usuários, verificar se tem assinatura ativa
+    return subscription !== null;
+  };
+
   return (
     <AuthContext.Provider value={{ 
       user, 
@@ -126,7 +152,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       subscription,
       refreshSubscription,
       hasAccessToCategory,
-      isLoading
+      isLoading,
+      canAccessApp
     }}>
       {children}
     </AuthContext.Provider>

@@ -11,6 +11,12 @@ export function useAccessControl(suppliers: Supplier[]) {
     const updateAccessibleSuppliers = () => {
       if (!suppliers.length) return;
       
+      // Usuários admin ou master têm acesso a todos os fornecedores
+      if (user?.role === "admin" || user?.role === "master") {
+        setAccessibleSuppliers([...suppliers]);
+        return;
+      }
+      
       // Se não estiver logado, mostrar apenas os gratuitos
       if (!user) {
         const freeSuppliers = suppliers.filter(s => s.isFreeSupplier);
@@ -25,6 +31,19 @@ export function useAccessControl(suppliers: Supplier[]) {
         return;
       }
       
+      // Se for plano gratuito, mostrar apenas os gratuitos e os para alunos da Rede Genius
+      if (subscription.planType === 'free') {
+        let filtered = suppliers.filter(s => s.isFreeSupplier);
+        
+        // Se for aluno Genius aprovado, mostrar também os fornecedores para alunos
+        if (user.geniusStatus === 'approved' && user.geniusCoupon === "ALUNOREDEGENIUS") {
+          filtered = [...filtered, ...suppliers.filter(s => !s.isFreeSupplier && s.isGeniusStudent)];
+        }
+        
+        setAccessibleSuppliers(filtered);
+        return;
+      }
+      
       // Se for assinatura anual, mostrar todos
       if (subscription.planType === 'annual') {
         setAccessibleSuppliers([...suppliers]);
@@ -36,7 +55,7 @@ export function useAccessControl(suppliers: Supplier[]) {
       
       const filtered = suppliers.filter(supplier => {
         if (supplier.isFreeSupplier) return true;
-        if (user.geniusStatus === 'approved' && supplier.isGeniusStudent) return true;
+        if (user.geniusStatus === 'approved' && user.geniusCoupon === "ALUNOREDEGENIUS" && supplier.isGeniusStudent) return true;
         return supplier.categoryIds.some(catId => selectedCategoryIds.includes(catId));
       });
       
@@ -47,15 +66,26 @@ export function useAccessControl(suppliers: Supplier[]) {
   }, [suppliers, user, subscription]);
 
   const canAccessSupplier = (supplierId: string): boolean => {
+    // Admin e master têm acesso a todos os fornecedores
+    if (user?.role === "admin" || user?.role === "master") return true;
+    
     const supplier = suppliers.find(s => s.id === supplierId);
     if (!supplier) return false;
     
     if (supplier.isFreeSupplier) return true;
     if (!user) return false;
     if (!subscription) return false;
-    if (subscription.planType === 'annual') return true;
-    if (user.geniusStatus === 'approved' && supplier.isGeniusStudent) return true;
     
+    // Se for aluno Genius aprovado e o fornecedor for para alunos
+    if (user.geniusStatus === 'approved' && user.geniusCoupon === "ALUNOREDEGENIUS" && supplier.isGeniusStudent) return true;
+    
+    // Se for assinatura anual, tem acesso a tudo
+    if (subscription.planType === 'annual') return true;
+    
+    // Se for plano gratuito, não tem acesso a fornecedores pagos
+    if (subscription.planType === 'free') return false;
+    
+    // Para outros planos, verificar por categoria
     const selectedCategoryIds = subscription.selectedCategories || [];
     return supplier.categoryIds.some(catId => selectedCategoryIds.includes(catId));
   };

@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/auth-context";
 import { useToast } from "@/hooks/use-toast";
@@ -10,11 +10,25 @@ import { Check, Star } from "lucide-react";
 import { stripeService, PlanType } from "@/services/stripe-service";
 
 export default function PlansPage() {
-  const { user } = useAuth();
+  const { user, canAccessApp } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
   const plans = stripeService.getAvailablePlans();
+
+  // Redirecionar admin/master para o dashboard
+  useEffect(() => {
+    if (user && (user.role === "admin" || user.role === "master")) {
+      navigate("/dashboard");
+    }
+  }, [user, navigate]);
+
+  // Verificar se o usuário já tem uma assinatura ativa e pode acessar o app
+  useEffect(() => {
+    if (canAccessApp()) {
+      navigate("/dashboard");
+    }
+  }, [canAccessApp, navigate]);
 
   const handleSelectPlan = async (planId: PlanType) => {
     if (!user) {
@@ -28,7 +42,11 @@ export default function PlansPage() {
 
     try {
       const checkoutUrl = await stripeService.createCheckoutSession(planId, user.id);
-      window.location.href = checkoutUrl;
+      if (planId === 'free') {
+        navigate(checkoutUrl);
+      } else {
+        window.location.href = checkoutUrl;
+      }
     } catch (error) {
       console.error("Erro ao iniciar checkout:", error);
       toast({
@@ -38,6 +56,11 @@ export default function PlansPage() {
       });
     }
   };
+
+  // Se for um usuário admin ou master, não mostra a página de planos
+  if (user && (user.role === "admin" || user.role === "master")) {
+    return null;
+  }
 
   return (
     <AppLayout title="Planos de Assinatura" subtitle="Escolha o plano ideal para o seu negócio">

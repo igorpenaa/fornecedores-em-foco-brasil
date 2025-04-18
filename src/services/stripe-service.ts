@@ -37,6 +37,10 @@ export interface UserSubscription {
   selectedCategories?: string[];
 }
 
+// URL da API Stripe
+const STRIPE_API_URL = "https://api.stripe.com/v1";
+const STRIPE_SECRET_KEY = "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";
+
 // Serviço de Stripe
 class StripeService {
   // Obter todos os planos disponíveis
@@ -119,21 +123,49 @@ class StripeService {
         throw new Error('Plano não encontrado ou inválido');
       }
 
-      // Aqui vamos simular a criação de uma sessão de checkout do Stripe
-      // Em um ambiente de produção, isso seria feito através de uma chamada ao Stripe
+      // Verificar usuário para obter email
+      const userDoc = await getDoc(doc(db, 'users', userId));
+      if (!userDoc.exists()) {
+        throw new Error('Usuário não encontrado');
+      }
+      const userData = userDoc.data();
+      const userEmail = userData.email;
+
+      // Fazer chamada direta à API do Stripe para criar uma sessão de checkout
+      const response = await fetch(`${STRIPE_API_URL}/checkout/sessions`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${STRIPE_SECRET_KEY}`,
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: new URLSearchParams({
+          'success_url': `${window.location.origin}/select-categories?plan=${planId}&session_id={CHECKOUT_SESSION_ID}`,
+          'cancel_url': `${window.location.origin}/plans`,
+          'mode': 'subscription',
+          'customer_email': userEmail,
+          'line_items[0][price]': plan.priceId,
+          'line_items[0][quantity]': '1',
+          'payment_method_types[0]': 'card'
+        })
+      });
+
+      const session = await response.json();
       
-      // Registramos uma sessão temporária para o usuário
-      const checkoutSessionRef = await addDoc(collection(db, 'stripeCheckoutSessions'), {
+      if (session.error) {
+        throw new Error(session.error.message || 'Erro ao criar sessão de checkout');
+      }
+
+      // Registrar a sessão no Firestore
+      await addDoc(collection(db, 'stripeCheckoutSessions'), {
         userId,
         planId,
         priceId: plan.priceId,
+        sessionId: session.id,
         status: 'pending',
         createdAt: Timestamp.now()
       });
       
-      // Em um cenário real, aqui retornaríamos a URL da sessão de checkout do Stripe
-      // Como estamos apenas simulando, vamos retornar uma URL para nosso próprio processo de pagamento
-      return `/payment-simulation?sessionId=${checkoutSessionRef.id}&planId=${planId}`;
+      return session.url;
     } catch (error) {
       console.error('Erro ao criar sessão de checkout:', error);
       throw new Error('Não foi possível iniciar o processo de pagamento');

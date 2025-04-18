@@ -22,6 +22,10 @@ export function createAccessControl(user: User | null) {
 
   const hasAccessToCategory = async (categoryId: string): Promise<boolean> => {
     if (!user) return false;
+    
+    // Admin e master têm acesso a todas as categorias
+    if (user.role === "admin" || user.role === "master") return true;
+    
     try {
       return await stripeService.hasAccessToCategory(user.id, categoryId);
     } catch (error) {
