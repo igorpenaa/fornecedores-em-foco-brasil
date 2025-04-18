@@ -1,5 +1,5 @@
 
-import { createContext, useContext, ReactNode } from "react";
+import { createContext, useContext, ReactNode, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuthState } from "./auth/useAuthState";
 import { createAuthActions } from "./auth/authActions";
@@ -25,6 +25,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const { login, register, logout } = createAuthActions(setUser, setIsAuthenticated);
   const { hasPermission, canAccessGenius, hasAccessToCategory } = createAccessControl(user);
+
+  // Adicionar efeito para verificar a assinatura quando o usuário mudar
+  useEffect(() => {
+    if (user) {
+      refreshSubscription();
+    }
+  }, [user]);
 
   const toggleFavorite = async (supplierId: string) => {
     if (!user) return;
@@ -91,6 +98,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const userSubscription = await stripeService.getUserSubscription(user.id);
       setSubscription(userSubscription);
+      console.log("Assinatura atualizada:", userSubscription);
+      return userSubscription;
     } catch (error) {
       console.error("Erro ao carregar assinatura:", error);
       toast({
@@ -98,6 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         title: "Erro ao carregar assinatura",
         description: "Não foi possível carregar os dados da sua assinatura.",
       });
+      return null;
     }
   };
 

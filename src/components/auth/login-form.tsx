@@ -32,7 +32,7 @@ const loginSchema = z.object({
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 export function LoginForm() {
-  const { login } = useAuth();
+  const { login, subscription } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
@@ -54,7 +54,14 @@ export function LoginForm() {
         title: "Login realizado com sucesso!",
         description: "Bem-vindo ao sistema de gestão de fornecedores.",
       });
-      navigate("/dashboard");
+      
+      // Verifica se o usuário já possui uma assinatura
+      // Se não tiver, redireciona para a página de planos
+      if (!subscription) {
+        navigate("/plans");
+      } else {
+        navigate("/dashboard");
+      }
     } catch (error) {
       console.error("Erro capturado no formulário:", error);
       // O erro já foi tratado no AuthContext, não precisa mostrar novamente o toast aqui

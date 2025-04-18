@@ -21,6 +21,11 @@ export function createAuthActions(
         setUser(userData);
         setIsAuthenticated(true);
       }
+      
+      // A verificação da assinatura será feita pelo efeito no AuthContext
+      // quando o usuário for atualizado
+      
+      return userData;
     } catch (error) {
       console.error("Erro de login:", error);
       throw error;
@@ -32,6 +37,7 @@ export function createAuthActions(
       const userData = await authService.register(name, email, password, geniusCoupon);
       setUser(userData);
       setIsAuthenticated(true);
+      return userData;
     } catch (error) {
       console.error("Erro de registro:", error);
       throw error;
