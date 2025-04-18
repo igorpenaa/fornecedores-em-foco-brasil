@@ -1,5 +1,6 @@
 
 import { User, UserRole } from "@/types";
+import { stripeService } from "@/services/stripe-service";
 
 export function createAccessControl(user: User | null) {
   const hasPermission = (roles: UserRole[]): boolean => {

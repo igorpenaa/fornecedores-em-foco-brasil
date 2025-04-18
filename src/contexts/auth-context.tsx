@@ -6,6 +6,8 @@ import { createAuthActions } from "./auth/authActions";
 import { createAccessControl } from "./auth/accessControl";
 import { AuthContextType } from "./auth/types";
 import { authService } from "@/services/user-service";
+import { stripeService } from "@/services/stripe-service";
+import { GeniusStatus } from "@/types";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 

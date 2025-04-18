@@ -1,7 +1,6 @@
 
-import { User, GeniusStatus } from "@/types";
+import { User } from "@/types";
 import { authService } from "@/services/user-service";
-import { stripeService } from "@/services/stripe-service";
 
 export function createAuthActions(
   setUser: (user: User | null) => void,
