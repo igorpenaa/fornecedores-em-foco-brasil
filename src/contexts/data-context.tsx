@@ -10,6 +10,7 @@ interface DataContextType {
   categories: Category[];
   suppliers: Supplier[];
   highlights: Highlight[];
+  accessibleSuppliers: Supplier[];
   addCategory: (category: Omit<Category, "id" | "createdAt" | "updatedAt">) => Promise<void>;
   updateCategory: (id: string, category: Partial<Category>) => Promise<void>;
   deleteCategory: (id: string) => Promise<void>;
@@ -27,6 +28,8 @@ interface DataContextType {
   updateHighlight: (id: string, highlight: Partial<Highlight>) => Promise<void>;
   deleteHighlight: (id: string) => Promise<void>;
   uploadHighlightMedia: (file: File) => Promise<{publicId: string, url: string, mediaType: 'image' | 'video'}>;
+  isDataLoading: boolean;
+  canAccessSupplier: (supplierId: string) => boolean;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -35,12 +38,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [highlights, setHighlights] = useState<Highlight[]>([]);
-  const { user } = useAuth();
+  const [accessibleSuppliers, setAccessibleSuppliers] = useState<Supplier[]>([]);
+  const { user, subscription } = useAuth();
   const { toast } = useToast();
-  const [loading, setLoading] = useState(true);
+  const [isDataLoading, setIsDataLoading] = useState(true);
 
   const fetchData = async () => {
-    setLoading(true);
+    setIsDataLoading(true);
     try {
       const [categoriesData, suppliersData, highlightsData] = await Promise.all([
         categoryService.getAllCategories(),
@@ -59,7 +63,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         description: "Não foi possível carregar os dados. Tente novamente.",
       });
     } finally {
-      setLoading(false);
+      setIsDataLoading(false);
     }
   };
 
@@ -390,11 +394,83 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Determinar quais fornecedores o usuário tem acesso com base na assinatura
+  useEffect(() => {
+    const updateAccessibleSuppliers = async () => {
+      if (!suppliers.length) return;
+      
+      // Se não estiver logado, mostrar apenas os gratuitos
+      if (!user) {
+        const freeSuppliers = suppliers.filter(s => s.isFreeSupplier);
+        setAccessibleSuppliers(freeSuppliers);
+        return;
+      }
+      
+      // Se não tiver assinatura, mostrar apenas os gratuitos
+      if (!subscription) {
+        const freeSuppliers = suppliers.filter(s => s.isFreeSupplier);
+        setAccessibleSuppliers(freeSuppliers);
+        return;
+      }
+      
+      // Se for assinatura anual, mostrar todos
+      if (subscription.planType === 'annual') {
+        setAccessibleSuppliers([...suppliers]);
+        return;
+      }
+      
+      // Para outros tipos de assinatura, filtrar por categorias selecionadas
+      const selectedCategoryIds = subscription.selectedCategories || [];
+      
+      // Filtrar fornecedores por categorias selecionadas, gratuitos e alunos genius (se aplicável)
+      const filtered = suppliers.filter(supplier => {
+        // Se for fornecedor gratuito, sempre incluir
+        if (supplier.isFreeSupplier) return true;
+        
+        // Se o usuário for aluno genius e o fornecedor também, incluir
+        if (user?.geniusStatus === 'approved' && supplier.isGeniusStudent) return true;
+        
+        // Verificar se alguma categoria do fornecedor está entre as selecionadas
+        return supplier.categoryIds.some(catId => selectedCategoryIds.includes(catId));
+      });
+      
+      setAccessibleSuppliers(filtered);
+    };
+    
+    updateAccessibleSuppliers();
+  }, [suppliers, user, subscription]);
+
+  // Verificar se o usuário pode acessar um fornecedor específico
+  const canAccessSupplier = (supplierId: string): boolean => {
+    const supplier = suppliers.find(s => s.id === supplierId);
+    if (!supplier) return false;
+    
+    // Se for fornecedor gratuito, sempre permitir acesso
+    if (supplier.isFreeSupplier) return true;
+    
+    // Se não estiver logado, não permitir acesso a fornecedores pagos
+    if (!user) return false;
+    
+    // Se não tiver assinatura, não permitir acesso a fornecedores pagos
+    if (!subscription) return false;
+    
+    // Se for assinatura anual, permitir acesso a todos
+    if (subscription.planType === 'annual') return true;
+    
+    // Se o usuário for aluno genius e o fornecedor também, permitir acesso
+    if (user.geniusStatus === 'approved' && supplier.isGeniusStudent) return true;
+    
+    // Para outros tipos de assinatura, verificar se alguma categoria do fornecedor está entre as selecionadas
+    const selectedCategoryIds = subscription.selectedCategories || [];
+    return supplier.categoryIds.some(catId => selectedCategoryIds.includes(catId));
+  };
+
   return (
     <DataContext.Provider value={{
       categories,
       suppliers,
       highlights,
+      accessibleSuppliers,
       addCategory,
       updateCategory,
       deleteCategory,
@@ -411,7 +487,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
       addHighlight,
       updateHighlight,
       deleteHighlight,
-      uploadHighlightMedia
+      uploadHighlightMedia,
+      isDataLoading,
+      canAccessSupplier
     }}>
       {children}
     </DataContext.Provider>

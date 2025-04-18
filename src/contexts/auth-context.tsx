@@ -4,6 +4,7 @@ import { auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { authService } from "@/services/user-service";
 import { useToast } from "@/hooks/use-toast";
+import { stripeService, UserSubscription } from "@/services/stripe-service";
 
 interface AuthContextType {
   user: User | null;
@@ -16,6 +17,10 @@ interface AuthContextType {
   isFavorite: (supplierId: string) => boolean;
   updateGeniusStatus: (userId: string, status: GeniusStatus) => Promise<void>;
   canAccessGenius: () => boolean;
+  subscription: UserSubscription | null;
+  refreshSubscription: () => Promise<void>;
+  hasAccessToCategory: (categoryId: string) => Promise<boolean>;
+  isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -23,24 +28,33 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [subscription, setSubscription] = useState<UserSubscription | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const { toast } = useToast();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setIsLoading(true);
       if (firebaseUser) {
         try {
           const userData = await authService.getUserById(firebaseUser.uid);
           setUser(userData);
           setIsAuthenticated(true);
+          
+          const userSubscription = await stripeService.getUserSubscription(userData.id);
+          setSubscription(userSubscription);
         } catch (error) {
           console.error("Erro ao carregar dados do usuário:", error);
           setUser(null);
           setIsAuthenticated(false);
+          setSubscription(null);
         }
       } else {
         setUser(null);
         setIsAuthenticated(false);
+        setSubscription(null);
       }
+      setIsLoading(false);
     });
 
     return () => unsubscribe();
@@ -176,6 +190,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return user.favorites.includes(supplierId);
   };
 
+  const refreshSubscription = async () => {
+    if (!user) {
+      setSubscription(null);
+      return;
+    }
+
+    try {
+      const userSubscription = await stripeService.getUserSubscription(user.id);
+      setSubscription(userSubscription);
+    } catch (error) {
+      console.error("Erro ao carregar assinatura:", error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao carregar assinatura",
+        description: "Não foi possível carregar os dados da sua assinatura.",
+      });
+    }
+  };
+
+  const hasAccessToCategory = async (categoryId: string): Promise<boolean> => {
+    if (!user) return false;
+    
+    try {
+      return await stripeService.hasAccessToCategory(user.id, categoryId);
+    } catch (error) {
+      console.error("Erro ao verificar acesso:", error);
+      return false;
+    }
+  };
+
   return (
     <AuthContext.Provider value={{ 
       user, 
@@ -187,7 +231,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       toggleFavorite,
       isFavorite,
       updateGeniusStatus,
-      canAccessGenius
+      canAccessGenius,
+      subscription,
+      refreshSubscription,
+      hasAccessToCategory,
+      isLoading
     }}>
       {children}
     </AuthContext.Provider>

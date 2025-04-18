@@ -21,6 +21,9 @@ import Highlights from "./pages/Highlights";
 import Products from "./pages/Products";
 import Ads from "./pages/Ads";
 import Issues from "./pages/Issues";
+import PlansPage from "./pages/PlansPage";
+import PaymentSimulation from "./pages/PaymentSimulation";
+import SelectCategories from "./pages/SelectCategories";
 
 const queryClient = new QueryClient();
 
@@ -39,6 +42,11 @@ const App = () => (
                 
                 {/* Rotas públicas */}
                 <Route path="/login" element={<Login />} />
+                
+                {/* Rotas de assinatura */}
+                <Route path="/plans" element={<PlansPage />} />
+                <Route path="/payment-simulation" element={<PaymentSimulation />} />
+                <Route path="/select-categories" element={<SelectCategories />} />
                 
                 {/* Rotas protegidas */}
                 <Route path="/dashboard" element={<Dashboard />} />
