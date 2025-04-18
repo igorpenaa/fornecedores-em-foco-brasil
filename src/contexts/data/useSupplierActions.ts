@@ -1,11 +1,13 @@
 
 import { useState } from "react";
-import { Supplier } from "@/types";
+import { Supplier, Rating } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { supplierService } from "@/services/supplier-service";
+import { useAuth } from "@/contexts/auth-context";
 
 export function useSupplierActions() {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
 
   const addSupplier = async (supplier: Omit<Supplier, "id" | "createdAt" | "updatedAt">) => {
@@ -94,17 +96,25 @@ export function useSupplierActions() {
 
   const rateSupplier = async (supplierId: string, rating: number, comment: string, issues: string[]) => {
     try {
+      if (!user) throw new Error("Usuário não autenticado");
+      
       const supplier = suppliers.find(s => s.id === supplierId);
       if (!supplier) throw new Error("Fornecedor não encontrado");
 
+      // Create a properly typed Rating object with all required properties
+      const newRating: Rating = { 
+        id: Date.now().toString(),
+        userId: user.id,
+        userName: user.name,
+        supplierId: supplierId,
+        rating,
+        comment,
+        issues,
+        createdAt: new Date()
+      };
+
       const updatedSupplier = await supplierService.updateSupplier(supplierId, {
-        ratings: [...(supplier.ratings || []), { 
-          id: Date.now().toString(),
-          rating,
-          comment,
-          issues,
-          createdAt: new Date()
-        }]
+        ratings: [...(supplier.ratings || []), newRating]
       });
 
       setSuppliers(prev => prev.map(s => s.id === supplierId ? updatedSupplier : s));
