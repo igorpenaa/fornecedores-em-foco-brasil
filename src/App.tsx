@@ -37,6 +37,7 @@ const SubscriptionRoute = () => {
   useEffect(() => {
     // Se o usuário estiver autenticado mas não tiver assinatura, redirecionar para planos
     if (!isLoading && isAuthenticated && !canAccessApp()) {
+      console.log("Usuário autenticado mas sem acesso, redirecionando para planos");
       navigate("/plans", { replace: true });
     }
   }, [isAuthenticated, canAccessApp, isLoading, navigate]);

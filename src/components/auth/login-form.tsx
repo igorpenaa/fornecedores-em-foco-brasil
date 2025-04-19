@@ -32,7 +32,7 @@ const loginSchema = z.object({
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 export function LoginForm() {
-  const { login, subscription } = useAuth();
+  const { login, canAccessApp, user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
@@ -49,22 +49,29 @@ export function LoginForm() {
   async function onSubmit(data: LoginFormValues) {
     setIsLoading(true);
     try {
-      await login(data.email, data.password);
+      const userData = await login(data.email, data.password);
       toast({
         title: "Login realizado com sucesso!",
         description: "Bem-vindo ao sistema de gestão de fornecedores.",
       });
       
-      // Verifica se o usuário já possui uma assinatura
-      // Se não tiver, redireciona para a página de planos
-      if (!subscription) {
-        navigate("/plans");
-      } else {
+      // Se for admin ou master, vai direto para o dashboard
+      if (userData.role === "admin" || userData.role === "master") {
         navigate("/dashboard");
+      } 
+      // Senão, verifica se tem acesso (assinatura) e redireciona adequadamente
+      else if (canAccessApp()) {
+        navigate("/dashboard");
+      } else {
+        navigate("/plans");
       }
     } catch (error) {
       console.error("Erro capturado no formulário:", error);
-      // O erro já foi tratado no AuthContext, não precisa mostrar novamente o toast aqui
+      toast({
+        title: "Erro ao fazer login",
+        description: error instanceof Error ? error.message : "Credenciais inválidas",
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }

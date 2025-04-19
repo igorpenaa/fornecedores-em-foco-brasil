@@ -126,15 +126,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Nova função para verificar se o usuário pode acessar o sistema
+  // Função para verificar se o usuário pode acessar o sistema
   const canAccessApp = (): boolean => {
+    console.log("Verificando acesso ao app:", user?.role, subscription);
+    
     if (!user) return false;
     
     // Usuários admin ou master têm acesso total
-    if (user.role === "admin" || user.role === "master") return true;
+    if (user.role === "admin" || user.role === "master") {
+      console.log("Usuário admin/master, acesso permitido");
+      return true;
+    }
     
     // Para outros usuários, verificar se tem assinatura ativa
-    return subscription !== null;
+    const hasSubscription = subscription !== null;
+    console.log("Usuário regular, tem assinatura:", hasSubscription);
+    return hasSubscription;
   };
 
   return (

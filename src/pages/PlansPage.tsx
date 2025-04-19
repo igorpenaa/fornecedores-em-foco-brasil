@@ -1,4 +1,3 @@
-
 import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/auth-context";
@@ -18,17 +17,21 @@ export default function PlansPage() {
 
   // Redirecionar admin/master para o dashboard
   useEffect(() => {
+    console.log("PlansPage - user role:", user?.role);
     if (user && (user.role === "admin" || user.role === "master")) {
+      console.log("Redirecionando admin/master para dashboard");
       navigate("/dashboard");
     }
   }, [user, navigate]);
 
   // Verificar se o usuário já tem uma assinatura ativa e pode acessar o app
   useEffect(() => {
-    if (canAccessApp()) {
+    console.log("PlansPage - can access app:", canAccessApp());
+    if (canAccessApp() && user?.role !== "admin" && user?.role !== "master") {
+      console.log("Usuário com assinatura, redirecionando para dashboard");
       navigate("/dashboard");
     }
-  }, [canAccessApp, navigate]);
+  }, [canAccessApp, navigate, user]);
 
   const handleSelectPlan = async (planId: PlanType) => {
     if (!user) {
