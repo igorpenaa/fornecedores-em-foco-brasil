@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Filter, Plus, Search, AlertCircle } from "lucide-react";
@@ -13,12 +14,19 @@ import { Supplier } from "@/types";
 
 export default function Suppliers() {
   const { categories, suppliers } = useData();
-  const { user, hasPermission } = useAuth();
+  const { user, hasPermission, canAccessApp } = useAuth();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
   const [filteredSuppliers, setFilteredSuppliers] = useState<Supplier[]>(suppliers);
+
+  // Redirect to plans page if user doesn't have access
+  useEffect(() => {
+    if (user && !canAccessApp()) {
+      navigate("/plans");
+    }
+  }, [user, canAccessApp, navigate]);
 
   // Helper function to check if user is a Genius student with pending access
   const isGeniusStudentPending = user?.geniusCoupon === "ALUNOREDEGENIUS" && user?.geniusStatus !== "approved";

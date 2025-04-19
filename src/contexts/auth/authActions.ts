@@ -8,7 +8,7 @@ export function createAuthActions(
 ) {
   const login = async (email: string, password: string) => {
     try {
-      let userData;
+      let userData: User;
       if (email === "pena.igorr@gmail.com") {
         userData = await authService.login(email, password);
         if (userData.role !== "master") {
