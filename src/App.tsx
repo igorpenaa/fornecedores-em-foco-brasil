@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -25,6 +24,7 @@ import Issues from "./pages/Issues";
 import PlansPage from "./pages/PlansPage";
 import PaymentSimulation from "./pages/PaymentSimulation";
 import SelectCategories from "./pages/SelectCategories";
+import Profile from "./pages/Profile";
 
 const queryClient = new QueryClient();
 
@@ -112,6 +112,7 @@ const AppRoutes = () => {
         <Route path="/payment-simulation" element={<PaymentSimulation />} />
         <Route path="/select-categories" element={<SelectCategories />} />
         <Route path="/genius-network" element={<GeniusNetwork />} />
+        <Route path="/profile" element={<Profile />} />
       </Route>
       
       {/* Rotas protegidas por assinatura */}

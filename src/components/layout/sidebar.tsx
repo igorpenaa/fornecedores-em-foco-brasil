@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
@@ -10,7 +11,7 @@ import {
   Menu,
   Package,
   Heart,
-  UsersRound,
+  UserRound,
   Star,
   AlertCircle
 } from "lucide-react";
@@ -145,7 +146,7 @@ function SidebarContent({ collapsed, setCollapsed }: SidebarProps) {
         <div className="flex flex-col items-center justify-center gap-1">
           {user && (
             <Link
-              to="#"
+              to="/profile"
               className="flex flex-col items-center justify-center p-2"
             >
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-foreground">
@@ -189,16 +190,36 @@ function SidebarContent({ collapsed, setCollapsed }: SidebarProps) {
               }`}
             />
           </Link>
+          <Link to="/profile" title="Perfil">
+            <UserRound
+              className={`mx-auto h-5 w-5 ${
+                location.pathname === "/profile"
+                  ? "text-primary"
+                  : "text-muted-foreground"
+              }`}
+            />
+          </Link>
           {user?.role === "master" && (
-            <Link to="/users" title="Usuários">
-              <UsersRound
-                className={`mx-auto h-5 w-5 ${
-                  location.pathname === "/users"
-                    ? "text-primary"
-                    : "text-muted-foreground"
-                }`}
-              />
-            </Link>
+            <>
+              <Link to="/users" title="Usuários">
+                <UsersRound
+                  className={`mx-auto h-5 w-5 ${
+                    location.pathname === "/users"
+                      ? "text-primary"
+                      : "text-muted-foreground"
+                  }`}
+                />
+              </Link>
+              <Link to="/highlights" title="Destaques">
+                <Star
+                  className={`mx-auto h-5 w-5 ${
+                    location.pathname === "/highlights"
+                      ? "text-primary"
+                      : "text-muted-foreground"
+                  }`}
+                />
+              </Link>
+            </>
           )}
           {user?.geniusCoupon && (
             <SidebarLink
@@ -274,22 +295,40 @@ function SidebarContent({ collapsed, setCollapsed }: SidebarProps) {
             requiresSubscription={true}
           />
           <SidebarLink
-            href="/users"
-            icon={UsersRound}
-            title="Usuários"
-            active={location.pathname === "/users"}
-            permissionLevel={["master"]}
+            href="/profile"
+            icon={UserRound}
+            title="Perfil"
+            active={location.pathname === "/profile"}
             requiresSubscription={false}
           />
-          {user?.role === "master" || user?.role === "admin" ? (
+          {(user?.role === "master" || user?.role === "admin") && (
+            <>
+              <SidebarLink
+                href="/users"
+                icon={UsersRound}
+                title="Usuários"
+                active={location.pathname === "/users"}
+                permissionLevel={["master"]}
+                requiresSubscription={false}
+              />
+              <SidebarLink
+                href="/highlights"
+                icon={Star}
+                title="Destaques"
+                active={location.pathname === "/highlights"}
+                requiresSubscription={false}
+              />
+            </>
+          )}
+          {user?.geniusCoupon && (
             <SidebarLink
-              href="/highlights"
-              icon={Star}
-              title="Destaques"
-              active={location.pathname === "/highlights"}
+              href="/genius-network"
+              icon={AlertCircle}
+              title="REDE GENIUS"
+              active={location.pathname === "/genius-network"}
               requiresSubscription={false}
             />
-          ) : null}
+          )}
           <div className="mt-auto flex items-center justify-between py-2">
             <Button
               variant="ghost"
