@@ -12,7 +12,7 @@ import { Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { stripeService, PlanType } from "@/services/stripe-service";
 
 export default function SelectCategories() {
-  const { user } = useAuth();
+  const { user, refreshSubscription } = useAuth();
   const { categories } = useData();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -28,12 +28,15 @@ export default function SelectCategories() {
   
   useEffect(() => {
     const loadSubscriptionData = async () => {
-      if (!user || !planId) {
+      if (!user) {
         navigate("/plans");
         return;
       }
       
       try {
+        // Atualizar a assinatura do usuário
+        await refreshSubscription();
+        
         const userSubscription = await stripeService.getUserSubscription(user.id);
         if (!userSubscription) {
           toast({
@@ -46,6 +49,12 @@ export default function SelectCategories() {
         }
         
         setSubscription(userSubscription);
+        
+        // Se for plano anual, redirecionar para o dashboard (não precisa selecionar categorias)
+        if (userSubscription.planType === 'annual' || user.plano === 'annual') {
+          navigate("/dashboard");
+          return;
+        }
         
         // Se já tem categorias selecionadas, carrega-as
         if (userSubscription.selectedCategories && userSubscription.selectedCategories.length > 0) {
@@ -70,7 +79,7 @@ export default function SelectCategories() {
     };
     
     loadSubscriptionData();
-  }, [user, planId, navigate, toast]);
+  }, [user, planId, navigate, toast, refreshSubscription]);
   
   const handleCategorySelection = (categoryId: string, isChecked: boolean) => {
     if (isChecked) {
@@ -83,13 +92,22 @@ export default function SelectCategories() {
   const handleSaveCategories = async () => {
     if (!user || !subscription) return;
     
-    const maxCategories = plan?.maxCategories || 0;
+    // Obtém o limite de categorias com base no plano atual do usuário
+    let maxCategories = 0;
+    if (user.plano === 'monthly' || subscription.planType === 'monthly') {
+      maxCategories = 10;
+    } else if (user.plano === 'semi_annual' || subscription.planType === 'semi_annual') {
+      maxCategories = 20;
+    } else if (user.plano === 'annual' || subscription.planType === 'annual') {
+      // Plano anual não tem limite de categorias
+      maxCategories = Infinity;
+    }
     
     // Verificar se não excedeu o limite de categorias
-    if (plan?.id !== 'annual' && selectedCategories.length > maxCategories) {
+    if (selectedCategories.length > maxCategories) {
       toast({
         title: "Limite excedido",
-        description: `Você só pode selecionar até ${maxCategories} categorias com o plano ${plan?.title}`,
+        description: `Você só pode selecionar até ${maxCategories} categorias com o seu plano atual`,
         variant: "destructive",
       });
       return;
@@ -128,8 +146,15 @@ export default function SelectCategories() {
       </AppLayout>
     );
   }
-  
-  if (subscription?.planType === 'annual') {
+
+  // Determinar o limite de categorias com base no plano atual
+  let categoriesLimit = 0;
+  if (user?.plano === 'monthly' || subscription?.planType === 'monthly') {
+    categoriesLimit = 10;
+  } else if (user?.plano === 'semi_annual' || subscription?.planType === 'semi_annual') {
+    categoriesLimit = 20;
+  } else if (user?.plano === 'annual' || subscription?.planType === 'annual') {
+    // Return a UI for annual plan users indicating they have access to all categories
     return (
       <AppLayout title="Assinatura Anual" subtitle="Acesso a todas as categorias">
         <Card>
@@ -157,7 +182,6 @@ export default function SelectCategories() {
     );
   }
   
-  const categoriesLimit = plan?.maxCategories || 0;
   const categoriesCount = selectedCategories.length;
   const reachedLimit = categoriesCount >= categoriesLimit;
   
@@ -169,9 +193,9 @@ export default function SelectCategories() {
       <div className="mb-6">
         <Card className="bg-white dark:bg-gray-800">
           <CardHeader className="pb-3">
-            <CardTitle className="text-lg">Seu plano: {plan?.title}</CardTitle>
+            <CardTitle className="text-lg">Seu plano: {plan?.title || user?.plano}</CardTitle>
             <CardDescription>
-              {plan?.description}
+              {plan?.description || (user?.plano === 'monthly' ? 'Acesso a até 10 categorias' : 'Acesso a até 20 categorias')}
             </CardDescription>
           </CardHeader>
           <CardContent className="pb-3">

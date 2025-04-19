@@ -16,7 +16,7 @@ import {
   where 
 } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
-import { User, UserRole, GeniusStatus } from "@/types";
+import { User, UserRole, GeniusStatus, PlanType } from "@/types";
 
 // Collection references
 const USERS_COLLECTION = "users";
@@ -58,6 +58,12 @@ export const userService = {
   updateUser: async (userId: string, userData: Partial<User>) => {
     await updateDoc(doc(db, USERS_COLLECTION, userId), userData);
     return { id: userId, ...userData };
+  },
+
+  // Atualizar plano do usuário
+  updateUserPlan: async (userId: string, plan: PlanType) => {
+    await updateDoc(doc(db, USERS_COLLECTION, userId), { plano: plan });
+    return plan;
   },
 
   // Obter todos os usuários

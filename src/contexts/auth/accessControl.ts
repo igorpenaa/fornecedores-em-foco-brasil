@@ -26,7 +26,14 @@ export function createAccessControl(user: User | null) {
     // Admin e master têm acesso a todas as categorias
     if (user.role === "admin" || user.role === "master") return true;
     
+    // Se for plano gratuito, não tem acesso a categorias pagas
+    if (user.plano === 'free') return false;
+    
+    // Se for plano anual, tem acesso a todas as categorias
+    if (user.plano === 'annual') return true;
+    
     try {
+      // Para outros planos, verificar se a categoria está entre as selecionadas
       return await stripeService.hasAccessToCategory(user.id, categoryId);
     } catch (error) {
       console.error("Erro ao verificar acesso:", error);

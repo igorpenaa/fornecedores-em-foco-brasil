@@ -24,15 +24,8 @@ export function useAccessControl(suppliers: Supplier[]) {
         return;
       }
       
-      // Se não tiver assinatura, mostrar apenas os gratuitos
-      if (!subscription) {
-        const freeSuppliers = suppliers.filter(s => s.isFreeSupplier);
-        setAccessibleSuppliers(freeSuppliers);
-        return;
-      }
-      
-      // Se for plano gratuito, mostrar apenas os gratuitos e os para alunos da Rede Genius
-      if (subscription.planType === 'free') {
+      // Se for plano gratuito, mostrar apenas os gratuitos e os para alunos da Rede Genius aprovados
+      if (user.plano === 'free') {
         let filtered = suppliers.filter(s => s.isFreeSupplier);
         
         // Se for aluno Genius aprovado, mostrar também os fornecedores para alunos
@@ -45,17 +38,22 @@ export function useAccessControl(suppliers: Supplier[]) {
       }
       
       // Se for assinatura anual, mostrar todos
-      if (subscription.planType === 'annual') {
+      if (user.plano === 'annual' || subscription?.planType === 'annual') {
         setAccessibleSuppliers([...suppliers]);
         return;
       }
       
       // Para outros tipos de assinatura, filtrar por categorias selecionadas
-      const selectedCategoryIds = subscription.selectedCategories || [];
+      const selectedCategoryIds = subscription?.selectedCategories || [];
       
       const filtered = suppliers.filter(supplier => {
+        // Fornecedores gratuitos estão sempre disponíveis
         if (supplier.isFreeSupplier) return true;
+        
+        // Se for aluno Genius aprovado, mostrar também os fornecedores para alunos
         if (user.geniusStatus === 'approved' && user.geniusCoupon === "ALUNOREDEGENIUS" && supplier.isGeniusStudent) return true;
+        
+        // Verificar se alguma categoria do fornecedor está entre as categorias selecionadas pelo usuário
         return supplier.categoryIds.some(catId => selectedCategoryIds.includes(catId));
       });
       
@@ -72,21 +70,22 @@ export function useAccessControl(suppliers: Supplier[]) {
     const supplier = suppliers.find(s => s.id === supplierId);
     if (!supplier) return false;
     
+    // Fornecedores gratuitos estão sempre disponíveis
     if (supplier.isFreeSupplier) return true;
+    
     if (!user) return false;
-    if (!subscription) return false;
     
     // Se for aluno Genius aprovado e o fornecedor for para alunos
     if (user.geniusStatus === 'approved' && user.geniusCoupon === "ALUNOREDEGENIUS" && supplier.isGeniusStudent) return true;
     
-    // Se for assinatura anual, tem acesso a tudo
-    if (subscription.planType === 'annual') return true;
-    
     // Se for plano gratuito, não tem acesso a fornecedores pagos
-    if (subscription.planType === 'free') return false;
+    if (user.plano === 'free') return false;
+    
+    // Se for assinatura anual, tem acesso a tudo
+    if (user.plano === 'annual' || subscription?.planType === 'annual') return true;
     
     // Para outros planos, verificar por categoria
-    const selectedCategoryIds = subscription.selectedCategories || [];
+    const selectedCategoryIds = subscription?.selectedCategories || [];
     return supplier.categoryIds.some(catId => selectedCategoryIds.includes(catId));
   };
 

@@ -1,6 +1,6 @@
-
 export type UserRole = 'master' | 'admin' | 'user' | 'aluno';
 export type GeniusStatus = 'pending' | 'approved' | 'blocked';
+export type PlanType = 'free' | 'monthly' | 'semi_annual' | 'annual';
 
 export interface User {
   id: string;
@@ -10,6 +10,7 @@ export interface User {
   favorites: string[];
   geniusCoupon?: string;
   geniusStatus?: GeniusStatus; // Status de aprovação para alunos Genius
+  plano?: PlanType; // Campo para controlar o plano do usuário
 }
 
 export interface Category {

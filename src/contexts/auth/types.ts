@@ -1,5 +1,5 @@
 
-import { User, UserRole, GeniusStatus } from "@/types";
+import { User, UserRole, GeniusStatus, PlanType } from "@/types";
 import { UserSubscription } from "@/services/stripe-service";
 
 export interface AuthContextType {

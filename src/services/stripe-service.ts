@@ -1,6 +1,6 @@
-
 import { auth, db } from "@/lib/firebase";
 import { collection, addDoc, getDoc, setDoc, doc, updateDoc, Timestamp } from "firebase/firestore";
+import { userService } from "./user-service";
 
 // IDs dos preços no Stripe
 const PRICE_IDS = {
@@ -189,6 +189,9 @@ class StripeService {
       };
       
       await setDoc(doc(db, 'subscriptions', userId), subscription);
+      
+      // Atualizar o campo plano do usuário
+      await userService.updateUserPlan(userId, 'free');
     } catch (error) {
       console.error('Erro ao registrar assinatura gratuita:', error);
       throw new Error('Não foi possível ativar o plano gratuito');
@@ -231,6 +234,9 @@ class StripeService {
       };
       
       await setDoc(doc(db, 'subscriptions', userId), subscription);
+      
+      // Atualizar o campo plano do usuário
+      await userService.updateUserPlan(userId, planType);
     } catch (error) {
       console.error('Erro ao registrar assinatura paga:', error);
       throw new Error('Não foi possível ativar a assinatura');

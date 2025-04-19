@@ -7,7 +7,7 @@ import { createAccessControl } from "./auth/accessControl";
 import { AuthContextType } from "./auth/types";
 import { authService } from "@/services/user-service";
 import { stripeService } from "@/services/stripe-service";
-import { GeniusStatus } from "@/types";
+import { GeniusStatus, PlanType } from "@/types";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -113,6 +113,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const userSubscription = await stripeService.getUserSubscription(user.id);
       setSubscription(userSubscription);
+      
+      // Atualizar o campo plano do usuário se necessário
+      if (userSubscription && (!user.plano || user.plano !== userSubscription.planType)) {
+        await authService.updateUser(user.id, { plano: userSubscription.planType as PlanType });
+        setUser(prevUser => {
+          if (!prevUser) return null;
+          return {
+            ...prevUser,
+            plano: userSubscription.planType as PlanType
+          };
+        });
+      }
+      
       console.log("Assinatura atualizada:", userSubscription);
       return userSubscription;
     } catch (error) {
