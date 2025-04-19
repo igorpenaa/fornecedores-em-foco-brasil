@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
@@ -202,7 +201,7 @@ function SidebarContent({ collapsed, setCollapsed }: SidebarProps) {
           {user?.role === "master" && (
             <>
               <Link to="/users" title="Usuários">
-                <UsersRound
+                <UserRound
                   className={`mx-auto h-5 w-5 ${
                     location.pathname === "/users"
                       ? "text-primary"
@@ -305,7 +304,7 @@ function SidebarContent({ collapsed, setCollapsed }: SidebarProps) {
             <>
               <SidebarLink
                 href="/users"
-                icon={UsersRound}
+                icon={UserRound}
                 title="Usuários"
                 active={location.pathname === "/users"}
                 permissionLevel={["master"]}
