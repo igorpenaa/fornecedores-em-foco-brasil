@@ -1,14 +1,23 @@
-
 import { useAuth } from "@/contexts/auth-context";
 import { useData } from "@/contexts/data-context";
 import { AppLayout } from "@/components/layout/app-layout";
 import { SupplierCard } from "@/components/suppliers/supplier-card";
 import { AlertCircle } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useNavigate } from "react-router-dom";
+import { useEffect } from "react";
 
 export default function Favorites() {
   const { user, canAccessGenius } = useAuth();
   const { suppliers } = useData();
+  const navigate = useNavigate();
+
+  // Prevent access to favorites for free plan users
+  useEffect(() => {
+    if (user?.plano === 'free') {
+      navigate('/plans');
+    }
+  }, [user, navigate]);
 
   // Helper function to check if user is a Genius student with pending access
   const isGeniusStudentPending = user?.geniusCoupon === "ALUNOREDEGENIUS" && user?.geniusStatus !== "approved";

@@ -1,22 +1,17 @@
 
-import React, { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import { AppLayout } from "@/components/layout/app-layout";
 import { HighlightsCarousel } from "@/components/dashboard/highlights-carousel";
 import { ProductsShowcase } from "@/components/dashboard/products-showcase";
 import { AdsDisplay } from "@/components/dashboard/ads-display";
+import { PlanSelectionDialog } from "@/components/plans/plan-selection-dialog";
 
 export default function Dashboard() {
-  const { user, subscription } = useAuth();
-  const navigate = useNavigate();
+  const { user } = useAuth();
+  const [showPlanDialog, setShowPlanDialog] = useState(false);
 
-  // Redirecionar usuários do plano gratuito para a página de planos
-  useEffect(() => {
-    if (user && user.plano === 'free' && user.role !== 'admin' && user.role !== 'master') {
-      navigate("/plans");
-    }
-  }, [user, navigate]);
+  const canAccessFeatures = user?.plano && user.plano !== 'free';
 
   return (
     <AppLayout title="Dashboard" subtitle="Bem-vindo ao Fornecedores">
@@ -29,8 +24,13 @@ export default function Dashboard() {
       </div>
       
       <div>
-        <ProductsShowcase />
+        <ProductsShowcase onUpgradeRequired={() => setShowPlanDialog(true)} disabled={!canAccessFeatures} />
       </div>
+
+      <PlanSelectionDialog 
+        open={showPlanDialog} 
+        onOpenChange={setShowPlanDialog} 
+      />
     </AppLayout>
   );
 }

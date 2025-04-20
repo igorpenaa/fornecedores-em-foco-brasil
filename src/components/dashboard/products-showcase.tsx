@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { 
   Carousel,
@@ -14,16 +13,19 @@ import { Product } from "@/types";
 import { useAuth } from "@/contexts/auth-context";
 import { formatCurrency } from "@/lib/utils";
 
-export function ProductsShowcase() {
+interface ProductsShowcaseProps {
+  disabled?: boolean;
+  onUpgradeRequired: () => void;
+}
+
+export function ProductsShowcase({ disabled = false, onUpgradeRequired }: ProductsShowcaseProps) {
   const [products, setProducts] = useState<Product[]>([]);
   const [api, setApi] = useState<CarouselApi>();
   const [current, setCurrent] = useState(0);
   const [count, setCount] = useState(0);
   const { user } = useAuth();
 
-  // Mock data for products
   useEffect(() => {
-    // Mock products data
     const mockProducts: Product[] = Array.from({ length: 30 }).map((_, i) => ({
       id: `product-${i + 1}`,
       name: `Produto ${i + 1}`,
@@ -48,7 +50,13 @@ export function ProductsShowcase() {
     });
   }, [api]);
 
-  // Calculate items per row based on screen size
+  const handleProductClick = (e: React.MouseEvent) => {
+    if (disabled) {
+      e.preventDefault();
+      onUpgradeRequired();
+    }
+  };
+
   const itemsPerPage = 10; // 2 rows of 5 items
 
   if (products.length === 0) {
@@ -80,7 +88,7 @@ export function ProductsShowcase() {
                   {products
                     .slice(page * itemsPerPage, (page + 1) * itemsPerPage)
                     .map((product) => (
-                      <Card key={product.id} className="overflow-hidden">
+                      <Card key={product.id} className={`overflow-hidden ${disabled ? 'opacity-70' : ''}`}>
                         <div className="aspect-square overflow-hidden">
                           {product.mediaType === "image" ? (
                             <img
@@ -105,7 +113,11 @@ export function ProductsShowcase() {
                           </p>
                         </CardContent>
                         <CardFooter className="p-3 pt-0">
-                          <Button className="w-full text-xs h-8" variant="secondary">
+                          <Button 
+                            className="w-full text-xs h-8" 
+                            variant="secondary"
+                            onClick={handleProductClick}
+                          >
                             Ver detalhes
                           </Button>
                         </CardFooter>
