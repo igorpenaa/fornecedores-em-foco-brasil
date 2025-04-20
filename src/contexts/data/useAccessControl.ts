@@ -26,11 +26,12 @@ export function useAccessControl(suppliers: Supplier[]) {
       
       // Se for plano gratuito, mostrar apenas os gratuitos e os para alunos da Rede Genius aprovados
       if (user.plano === 'free') {
+        // Começar com fornecedores gratuitos
         let filtered = suppliers.filter(s => s.isFreeSupplier);
         
-        // Se for aluno Genius aprovado, mostrar também os fornecedores para alunos
-        if (user.geniusStatus === 'approved' && user.geniusCoupon === "ALUNOREDEGENIUS") {
-          const geniusSuppliers = suppliers.filter(s => !s.isFreeSupplier && s.isGeniusStudent);
+        // Se for aluno Genius aprovado, adicionar também os fornecedores para alunos
+        if (user.geniusCoupon === "ALUNOREDEGENIUS" && user.geniusStatus === 'approved') {
+          const geniusSuppliers = suppliers.filter(s => s.isGeniusStudent && !s.isFreeSupplier);
           filtered = [...filtered, ...geniusSuppliers];
         }
         
@@ -50,9 +51,6 @@ export function useAccessControl(suppliers: Supplier[]) {
       const filtered = suppliers.filter(supplier => {
         // Fornecedores gratuitos estão sempre disponíveis
         if (supplier.isFreeSupplier) return true;
-        
-        // Se for aluno Genius aprovado, mostrar também os fornecedores para alunos
-        if (user.geniusStatus === 'approved' && user.geniusCoupon === "ALUNOREDEGENIUS" && supplier.isGeniusStudent) return true;
         
         // Verificar se alguma categoria do fornecedor está entre as categorias selecionadas pelo usuário
         return supplier.categoryIds.some(catId => selectedCategoryIds.includes(catId));
@@ -76,11 +74,13 @@ export function useAccessControl(suppliers: Supplier[]) {
     
     if (!user) return false;
     
-    // Se for aluno Genius aprovado e o fornecedor for para alunos
-    if (user.geniusStatus === 'approved' && user.geniusCoupon === "ALUNOREDEGENIUS" && supplier.isGeniusStudent) return true;
-    
-    // Se for plano gratuito, não tem acesso a fornecedores pagos
-    if (user.plano === 'free') return false;
+    // Se for plano gratuito, verificar se é aluno Genius aprovado e o fornecedor é para alunos
+    if (user.plano === 'free') {
+      // Apenas permite acesso a fornecedores para alunos se for aluno Genius aprovado
+      return (user.geniusCoupon === "ALUNOREDEGENIUS" && 
+              user.geniusStatus === 'approved' && 
+              supplier.isGeniusStudent);
+    }
     
     // Se for assinatura anual, tem acesso a tudo
     if (user.plano === 'annual' || subscription?.planType === 'annual') return true;

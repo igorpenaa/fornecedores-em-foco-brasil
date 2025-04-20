@@ -8,9 +8,10 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Check, Star } from "lucide-react";
 import { stripeService, PlanType } from "@/services/stripe-service";
+import { userService } from "@/services/user-service";
 
 export default function PlansPage() {
-  const { user, canAccessApp } = useAuth();
+  const { user, canAccessApp, setUser } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -36,16 +37,29 @@ export default function PlansPage() {
     }
 
     try {
-      const checkoutUrl = await stripeService.createCheckoutSession(planId, user.id);
-      
-      // Para plano free, redirecionar diretamente para dashboard em vez da seleção de categorias
+      // Para plano free, atualizar diretamente o usuário e redirecionar para o dashboard
       if (planId === 'free') {
-        // Garantir que o usuário tenha o campo plano atualizado para 'free' antes de redirecionar
+        console.log("Atualizando usuário para plano free");
+        await userService.updateUserPlan(user.id, 'free');
+        
+        // Atualizar o contexto do usuário localmente para refletir a mudança
+        setUser({
+          ...user,
+          plano: 'free'
+        });
+        
+        toast({
+          title: "Plano atualizado com sucesso",
+          description: "Você agora está no plano gratuito",
+        });
+        
         navigate("/dashboard");
-      } else {
-        // Para planos pagos, redirecionar para o Stripe Checkout
-        window.location.href = checkoutUrl;
+        return;
       }
+      
+      // Para planos pagos, redirecionar para o Stripe Checkout
+      const checkoutUrl = await stripeService.createCheckoutSession(planId, user.id);
+      window.location.href = checkoutUrl;
     } catch (error) {
       console.error("Erro ao iniciar checkout:", error);
       toast({

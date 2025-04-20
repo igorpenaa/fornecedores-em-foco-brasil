@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Filter, Plus, Search, AlertCircle } from "lucide-react";
@@ -13,13 +12,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Supplier } from "@/types";
 
 export default function Suppliers() {
-  const { categories, suppliers } = useData();
+  const { categories, suppliers, accessibleSuppliers } = useData();
   const { user, hasPermission, canAccessApp } = useAuth();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
-  const [filteredSuppliers, setFilteredSuppliers] = useState<Supplier[]>(suppliers);
+  const [filteredSuppliers, setFilteredSuppliers] = useState<Supplier[]>([]);
 
   // Redirect to plans page if user doesn't have access
   useEffect(() => {
@@ -34,31 +33,11 @@ export default function Suppliers() {
   // Helper function to check if user is a Genius student with blocked access
   const isGeniusStudentBlocked = user?.geniusCoupon === "ALUNOREDEGENIUS" && user?.geniusStatus === "blocked";
 
-  // Helper function to filter suppliers based on user role and status
-  const filterSuppliersByUserAccess = (suppliers: Supplier[]) => {
-    if (hasPermission(["master", "admin"])) {
-      return suppliers; // Admins see all suppliers
-    }
-
-    if (user?.geniusCoupon === "ALUNOREDEGENIUS") {
-      if (user.geniusStatus === "approved") {
-        // Only show free suppliers and Genius student suppliers
-        return suppliers.filter(s => s.isFreeSupplier || s.isGeniusStudent);
-      }
-      return []; // If not approved, show no suppliers
-    }
-
-    return suppliers; // Regular users see all suppliers
-  };
-
-  // Filtrar fornecedores baseado nos critérios
+  // Filtrar fornecedores baseado nos critérios - usando accessibleSuppliers ao invés de suppliers direto
   useEffect(() => {
-    let result = suppliers;
+    // Começar com os fornecedores aos quais o usuário tem acesso
+    let result = accessibleSuppliers;
 
-    // Apply user access filter first
-    result = filterSuppliersByUserAccess(result);
-
-    // Then apply other filters
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       result = result.filter(
@@ -81,7 +60,7 @@ export default function Suppliers() {
     }
 
     setFilteredSuppliers(result);
-  }, [suppliers, searchTerm, selectedCategory, showOnlyFavorites, user]);
+  }, [accessibleSuppliers, searchTerm, selectedCategory, showOnlyFavorites, user]);
 
   if (isGeniusStudentPending) {
     return (
