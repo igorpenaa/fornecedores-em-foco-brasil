@@ -6,12 +6,12 @@ import { useToast } from "@/hooks/use-toast";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Check, Star } from "lucide-react";
+import { Check } from "lucide-react";
 import { stripeService, PlanType } from "@/services/stripe-service";
 import { userService } from "@/services/user-service";
 
 export default function PlansPage() {
-  const { user, canAccessApp, setUser } = useAuth();
+  const { user, canAccessApp } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -42,12 +42,7 @@ export default function PlansPage() {
         console.log("Atualizando usuário para plano free");
         await userService.updateUserPlan(user.id, 'free');
         
-        // Atualizar o contexto do usuário localmente para refletir a mudança
-        setUser({
-          ...user,
-          plano: 'free'
-        });
-        
+        // Não temos acesso direto a setUser, então vamos recarregar a página para atualizar o contexto
         toast({
           title: "Plano atualizado com sucesso",
           description: "Você agora está no plano gratuito",
