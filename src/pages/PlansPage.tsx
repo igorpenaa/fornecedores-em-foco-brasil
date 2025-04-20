@@ -48,9 +48,13 @@ export default function PlansPage() {
 
     try {
       const checkoutUrl = await stripeService.createCheckoutSession(planId, user.id);
+      
+      // Para plano free, redirecionar diretamente para dashboard em vez da seleção de categorias
       if (planId === 'free') {
-        navigate(checkoutUrl);
+        // Garantir que o usuário tenha o campo plano atualizado para 'free' antes de redirecionar
+        navigate("/dashboard");
       } else {
+        // Para planos pagos, redirecionar para o Stripe Checkout
         window.location.href = checkoutUrl;
       }
     } catch (error) {
@@ -141,4 +145,3 @@ export default function PlansPage() {
       </div>
     </AppLayout>
   );
-}

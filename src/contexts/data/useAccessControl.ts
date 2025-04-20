@@ -30,7 +30,8 @@ export function useAccessControl(suppliers: Supplier[]) {
         
         // Se for aluno Genius aprovado, mostrar também os fornecedores para alunos
         if (user.geniusStatus === 'approved' && user.geniusCoupon === "ALUNOREDEGENIUS") {
-          filtered = [...filtered, ...suppliers.filter(s => !s.isFreeSupplier && s.isGeniusStudent)];
+          const geniusSuppliers = suppliers.filter(s => !s.isFreeSupplier && s.isGeniusStudent);
+          filtered = [...filtered, ...geniusSuppliers];
         }
         
         setAccessibleSuppliers(filtered);
