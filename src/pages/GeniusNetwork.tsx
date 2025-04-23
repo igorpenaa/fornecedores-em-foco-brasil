@@ -9,9 +9,25 @@ import { Lock, AlertCircle } from "lucide-react";
 
 export default function GeniusNetwork() {
   const { suppliers } = useData();
-  const { user, canAccessGenius } = useAuth();
+  const { user, hasPermission } = useAuth();
 
   const geniusSuppliers = suppliers.filter(supplier => supplier.isGeniusStudent);
+  
+  // Helper function to check if user can access Genius Network
+  const canAccessGenius = () => {
+    if (!user) return false;
+    
+    // Admin e master têm acesso a tudo
+    if (user.role === "admin" || user.role === "master") return true;
+    
+    // Alunos Genius têm acesso se aprovados
+    if (user.geniusCoupon === "ALUNOREDEGENIUS") {
+      return user.geniusStatus === "approved";
+    }
+    
+    return false;
+  };
+  
   const hasAccess = canAccessGenius();
 
   if (!hasAccess && user?.geniusCoupon === "ALUNOREDEGENIUS") {

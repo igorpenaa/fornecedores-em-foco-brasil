@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { PlusCircle, Search, Edit, Trash, Check, Lock, Unlock } from "lucide-react";
@@ -28,7 +29,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { User, UserRole } from "@/types";
+import { User, UserRole, GeniusStatus } from "@/types";
 import { userService } from "@/services/user-service";
 import { useAuth } from "@/contexts/auth-context";
 

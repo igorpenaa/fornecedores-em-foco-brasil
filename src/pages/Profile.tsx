@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 
 export default function Profile() {
-  const { user, subscription } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   return (
@@ -48,17 +48,15 @@ export default function Profile() {
                 Como {user.role === "master" ? "Master" : "Administrador"}, 
                 você tem acesso completo ao sistema sem necessidade de assinatura.
               </p>
-            ) : subscription ? (
+            ) : user?.plano && user.plano !== 'free' ? (
               <>
                 <div>
                   <h3 className="text-sm font-medium text-muted-foreground">Plano Atual</h3>
-                  <p className="text-lg">{subscription.planType}</p>
+                  <p className="text-lg">{user.plano}</p>
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-muted-foreground">Validade</h3>
-                  <p className="text-lg">
-                    {new Date(subscription.endDate).toLocaleDateString('pt-BR')}
-                  </p>
+                  <p className="text-lg">Em vigor</p>
                 </div>
                 <Button 
                   variant="outline"

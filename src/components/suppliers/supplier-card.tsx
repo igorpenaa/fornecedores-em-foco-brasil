@@ -169,4 +169,3 @@ export function SupplierCard({ supplier }: SupplierCardProps) {
     </>
   );
 }
-

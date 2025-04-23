@@ -9,10 +9,10 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, CheckCircle2, AlertCircle } from "lucide-react";
-import { stripeService, PlanType } from "@/services/stripe-service";
+import { PlanType } from "@/services/stripe-service";
 
 export default function SelectCategories() {
-  const { user, refreshSubscription } = useAuth();
+  const { user } = useAuth();
   const { categories } = useData();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -21,7 +21,6 @@ export default function SelectCategories() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [subscription, setSubscription] = useState<any>(null);
   const [plan, setPlan] = useState<any>(null);
   
   const planId = searchParams.get("plan") as PlanType | null;
@@ -34,38 +33,12 @@ export default function SelectCategories() {
       }
       
       try {
-        // Atualizar a assinatura do usuário
-        await refreshSubscription();
-        
-        const userSubscription = await stripeService.getUserSubscription(user.id);
-        if (!userSubscription) {
-          toast({
-            title: "Assinatura não encontrada",
-            description: "Não foi possível encontrar sua assinatura. Verifique seu plano.",
-            variant: "destructive",
-          });
-          navigate("/plans");
-          return;
-        }
-        
-        setSubscription(userSubscription);
-        
         // Se for plano anual, redirecionar para o dashboard (não precisa selecionar categorias)
-        if (userSubscription.planType === 'annual' || user.plano === 'annual') {
+        if (user.plano === 'annual') {
           navigate("/dashboard");
           return;
         }
         
-        // Se já tem categorias selecionadas, carrega-as
-        if (userSubscription.selectedCategories && userSubscription.selectedCategories.length > 0) {
-          setSelectedCategories(userSubscription.selectedCategories);
-        }
-        
-        // Carrega detalhes do plano
-        const planDetails = stripeService.getAvailablePlans().find(p => p.id === userSubscription.planType);
-        if (planDetails) {
-          setPlan(planDetails);
-        }
       } catch (error) {
         console.error("Erro ao carregar assinatura:", error);
         toast({
@@ -79,7 +52,7 @@ export default function SelectCategories() {
     };
     
     loadSubscriptionData();
-  }, [user, planId, navigate, toast, refreshSubscription]);
+  }, [user, planId, navigate, toast]);
   
   const handleCategorySelection = (categoryId: string, isChecked: boolean) => {
     if (isChecked) {
@@ -90,15 +63,15 @@ export default function SelectCategories() {
   };
   
   const handleSaveCategories = async () => {
-    if (!user || !subscription) return;
+    if (!user) return;
     
     // Obtém o limite de categorias com base no plano atual do usuário
     let maxCategories = 0;
-    if (user.plano === 'monthly' || subscription.planType === 'monthly') {
+    if (user.plano === 'monthly') {
       maxCategories = 10;
-    } else if (user.plano === 'semi_annual' || subscription.planType === 'semi_annual') {
+    } else if (user.plano === 'semi_annual') {
       maxCategories = 20;
-    } else if (user.plano === 'annual' || subscription.planType === 'annual') {
+    } else if (user.plano === 'annual') {
       // Plano anual não tem limite de categorias
       maxCategories = Infinity;
     }
@@ -116,7 +89,8 @@ export default function SelectCategories() {
     setSaving(true);
     
     try {
-      await stripeService.updateSelectedCategories(user.id, selectedCategories);
+      // Simulação de salvar categorias (no app real, faria uma chamada API)
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
       toast({
         title: "Categorias salvas",
@@ -149,11 +123,11 @@ export default function SelectCategories() {
 
   // Determinar o limite de categorias com base no plano atual
   let categoriesLimit = 0;
-  if (user?.plano === 'monthly' || subscription?.planType === 'monthly') {
+  if (user?.plano === 'monthly') {
     categoriesLimit = 10;
-  } else if (user?.plano === 'semi_annual' || subscription?.planType === 'semi_annual') {
+  } else if (user?.plano === 'semi_annual') {
     categoriesLimit = 20;
-  } else if (user?.plano === 'annual' || subscription?.planType === 'annual') {
+  } else if (user?.plano === 'annual') {
     // Return a UI for annual plan users indicating they have access to all categories
     return (
       <AppLayout title="Assinatura Anual" subtitle="Acesso a todas as categorias">

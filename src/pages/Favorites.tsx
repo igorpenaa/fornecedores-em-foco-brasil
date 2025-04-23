@@ -1,3 +1,4 @@
+
 import { useAuth } from "@/contexts/auth-context";
 import { useData } from "@/contexts/data-context";
 import { AppLayout } from "@/components/layout/app-layout";
@@ -8,7 +9,7 @@ import { useEffect } from "react";
 import { SharedPlanDialog, usePlanDialog } from "@/components/plans/shared-plan-dialog";
 
 export default function Favorites() {
-  const { user, canAccessGenius } = useAuth();
+  const { user } = useAuth();
   const { suppliers } = useData();
   const { setIsOpen } = usePlanDialog();
 

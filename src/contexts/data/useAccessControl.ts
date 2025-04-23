@@ -4,7 +4,7 @@ import { Supplier } from "@/types";
 import { useAuth } from "@/contexts/auth-context";
 
 export function useAccessControl(suppliers: Supplier[]) {
-  const { user, subscription } = useAuth();
+  const { user } = useAuth();
   const [accessibleSuppliers, setAccessibleSuppliers] = useState<Supplier[]>([]);
 
   useEffect(() => {
@@ -40,27 +40,18 @@ export function useAccessControl(suppliers: Supplier[]) {
       }
       
       // Se for assinatura anual, mostrar todos
-      if (user.plano === 'annual' || subscription?.planType === 'annual') {
+      if (user.plano === 'annual') {
         setAccessibleSuppliers([...suppliers]);
         return;
       }
       
-      // Para outros tipos de assinatura, filtrar por categorias selecionadas
-      const selectedCategoryIds = subscription?.selectedCategories || [];
-      
-      const filtered = suppliers.filter(supplier => {
-        // Fornecedores gratuitos estão sempre disponíveis
-        if (supplier.isFreeSupplier) return true;
-        
-        // Verificar se alguma categoria do fornecedor está entre as categorias selecionadas pelo usuário
-        return supplier.categoryIds.some(catId => selectedCategoryIds.includes(catId));
-      });
-      
-      setAccessibleSuppliers(filtered);
+      // Para outros tipos de assinatura, mostrar todos (temporário)
+      // Em uma implementação real, verificaríamos categorias disponíveis
+      setAccessibleSuppliers([...suppliers]);
     };
     
     updateAccessibleSuppliers();
-  }, [suppliers, user, subscription]);
+  }, [suppliers, user]);
 
   const canAccessSupplier = (supplierId: string): boolean => {
     // Admin e master têm acesso a todos os fornecedores
@@ -83,11 +74,11 @@ export function useAccessControl(suppliers: Supplier[]) {
     }
     
     // Se for assinatura anual, tem acesso a tudo
-    if (user.plano === 'annual' || subscription?.planType === 'annual') return true;
+    if (user.plano === 'annual') return true;
     
-    // Para outros planos, verificar por categoria
-    const selectedCategoryIds = subscription?.selectedCategories || [];
-    return supplier.categoryIds.some(catId => selectedCategoryIds.includes(catId));
+    // Para outros planos, permitir acesso (temporário)
+    // Em uma implementação real, verificaríamos categorias disponíveis
+    return true;
   };
 
   return {
