@@ -1,9 +1,10 @@
+
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff, KeyRound, Mail } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -34,6 +35,7 @@ export function LoginForm() {
   const { login } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -54,15 +56,14 @@ export function LoginForm() {
         description: "Bem-vindo ao sistema de gestão de fornecedores.",
       });
       
-      // Se for admin ou master, vai direto para o dashboard
+      // Simplified navigation logic to prevent potential issues
       if (userData.role === "admin" || userData.role === "master") {
         navigate("/dashboard");
       } 
-      // Se não tiver plano pago, redireciona para o dashboard com o diálogo de planos aberto
       else if (!userData.plano || userData.plano === 'free') {
+        // Use state instead of direct parameter passing to avoid reloading issues
         navigate("/dashboard", { state: { showPlanDialog: true } });
       }
-      // Se tiver plano pago, vai direto para o dashboard
       else {
         navigate("/dashboard");
       }

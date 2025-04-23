@@ -15,17 +15,23 @@ export default function Dashboard() {
 
   const canAccessFeatures = user?.plano && ['monthly', 'semi_annual', 'annual'].includes(user.plano);
 
+  // Fix: Add dependency array and only run the effect when necessary conditions change
   useEffect(() => {
-    // Mostra o diálogo se for o primeiro acesso ou se o usuário tem plano free
-    if (isFirstAccess) {
+    // Check if dialog should be shown based on first access or location state
+    const shouldShowDialog = 
+      isFirstAccess || 
+      (location.state && location.state.showPlanDialog);
+      
+    // Only open the dialog if shouldShowDialog is true
+    if (shouldShowDialog) {
       setIsOpen(true);
       
-      // Se for o primeiro acesso e o usuário já tiver um ID, marque como concluído
-      if (user?.id) {
+      // If it's the first access and the user has an ID, mark it as completed
+      if (isFirstAccess && user?.id) {
         markFirstAccessCompleted(user.id);
       }
     }
-  }, [isFirstAccess, user, setIsOpen, markFirstAccessCompleted]);
+  }, [isFirstAccess, user?.id, markFirstAccessCompleted, setIsOpen, location.state]);
 
   return (
     <AppLayout title="Dashboard" subtitle="Bem-vindo ao Fornecedores">

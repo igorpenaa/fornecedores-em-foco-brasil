@@ -9,7 +9,13 @@ interface PlanDialogStore {
 
 export const usePlanDialog = create<PlanDialogStore>((set) => ({
   isOpen: false,
-  setIsOpen: (open) => set({ isOpen: open }),
+  setIsOpen: (open) => set((state) => {
+    // Only update if the value is actually changing
+    if (state.isOpen !== open) {
+      return { isOpen: open };
+    }
+    return state;
+  }),
 }));
 
 export function SharedPlanDialog() {
