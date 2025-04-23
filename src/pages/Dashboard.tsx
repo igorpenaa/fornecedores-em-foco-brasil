@@ -16,12 +16,14 @@ export default function Dashboard() {
   // Verifica se o usuário pode acessar os recursos premium
   const canAccessFeatures = user?.plano && ['monthly', 'semi_annual', 'annual'].includes(user.plano);
 
-  // Abre o diálogo se vier da navegação após login
+  // Abre o diálogo se vier da navegação após login e não tiver plano definido
   useEffect(() => {
-    if (location.state?.showPlanDialog) {
+    // Só mostra o diálogo se for explicitamente solicitado e o usuário não tiver plano
+    // Isso evita que o diálogo reabra após o usuário já ter selecionado o plano gratuito
+    if (location.state?.showPlanDialog && !user?.plano) {
       setIsOpen(true);
     }
-  }, [location.state, setIsOpen]);
+  }, [location.state, setIsOpen, user]);
 
   return (
     <AppLayout title="Dashboard" subtitle="Bem-vindo ao Fornecedores">

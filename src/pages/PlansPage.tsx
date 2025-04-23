@@ -1,4 +1,3 @@
-
 import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/auth-context";
@@ -37,15 +36,14 @@ export default function PlansPage() {
     }
 
     try {
-      // Para plano free, atualizar diretamente o usuário e redirecionar para o dashboard
+      // Para plano free, registrar a assinatura e redirecionar para o dashboard
       if (planId === 'free') {
         console.log("Atualizando usuário para plano free");
-        await userService.updateUserPlan(user.id, 'free');
+        await stripeService.registerFreeSubscription(user.id);
         
-        // Não temos acesso direto a setUser, então vamos recarregar a página para atualizar o contexto
         toast({
-          title: "Plano atualizado com sucesso",
-          description: "Você agora está no plano gratuito",
+          title: "Plano gratuito ativado",
+          description: "Você agora tem acesso aos fornecedores gratuitos",
         });
         
         navigate("/dashboard");

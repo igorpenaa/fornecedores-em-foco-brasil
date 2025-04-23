@@ -1,3 +1,4 @@
+
 import { auth, db } from "@/lib/firebase";
 import { collection, addDoc, getDoc, setDoc, doc, updateDoc, Timestamp } from "firebase/firestore";
 import { userService } from "./user-service";
@@ -112,10 +113,11 @@ class StripeService {
   // Criar sessão de checkout do Stripe
   async createCheckoutSession(planId: PlanType, userId: string): Promise<string> {
     try {
+      // O plano gratuito agora é tratado diretamente no PlanSelectionDialog
+      // Esta verificação permanece como fallback
       if (planId === 'free') {
-        // If it's a free plan, register the free subscription and redirect to dashboard
         await this.registerFreeSubscription(userId);
-        return '/dashboard'; // Direct navigation to dashboard
+        return '/dashboard';
       }
 
       const plan = this.getAvailablePlans().find(p => p.id === planId);

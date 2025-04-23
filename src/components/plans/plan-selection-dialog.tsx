@@ -32,6 +32,19 @@ export function PlanSelectionDialog({ open, onOpenChange }: PlanSelectionDialogP
     }
 
     try {
+      // Para o plano gratuito, feche o diálogo e navegue direto para o dashboard
+      if (planId === 'free') {
+        await stripeService.registerFreeSubscription(user.id);
+        onOpenChange(false); // Feche o diálogo
+        navigate('/dashboard'); // Navegue para o dashboard
+        toast({
+          title: "Plano gratuito ativado",
+          description: "Você agora tem acesso aos fornecedores gratuitos",
+        });
+        return;
+      }
+
+      // Para outros planos, continue com o fluxo de checkout
       const checkoutUrl = await stripeService.createCheckoutSession(planId, user.id);
       window.location.href = checkoutUrl;
     } catch (error) {
