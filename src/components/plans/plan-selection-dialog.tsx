@@ -1,9 +1,9 @@
 
-import React from "react";
+import React, { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Check } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
@@ -18,6 +18,7 @@ export function PlanSelectionDialog({ open, onOpenChange }: PlanSelectionDialogP
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [processingPlan, setProcessingPlan] = useState<string | null>(null);
   const plans = stripeService.getAvailablePlans();
 
   const handleSelectPlan = async (planId: PlanType) => {
@@ -30,6 +31,10 @@ export function PlanSelectionDialog({ open, onOpenChange }: PlanSelectionDialogP
       onOpenChange(false);
       return navigate("/login");
     }
+
+    // Evita cliques múltiplos
+    if (processingPlan) return;
+    setProcessingPlan(planId);
 
     try {
       // Fechar o diálogo ANTES de qualquer operação assíncrona
@@ -45,9 +50,17 @@ export function PlanSelectionDialog({ open, onOpenChange }: PlanSelectionDialogP
         return;
       }
 
-      // Para outros planos, continue com o fluxo de checkout
+      // Para planos pagos, redirecionar para o Stripe Checkout ou simulação
       const checkoutUrl = await stripeService.createCheckoutSession(planId, user.id);
-      window.location.href = checkoutUrl;
+      console.log("URL de checkout recebida:", checkoutUrl);
+      
+      // Se for uma URL completa (http/https), navegue externamente
+      if (checkoutUrl.startsWith('http')) {
+        window.location.href = checkoutUrl;
+      } else {
+        // Se for um caminho relativo (/path), use o navigate do React Router
+        navigate(checkoutUrl);
+      }
     } catch (error) {
       console.error("Erro ao iniciar checkout:", error);
       toast({
@@ -55,6 +68,8 @@ export function PlanSelectionDialog({ open, onOpenChange }: PlanSelectionDialogP
         description: error instanceof Error ? error.message : "Não foi possível processar sua solicitação",
         variant: "destructive",
       });
+    } finally {
+      setProcessingPlan(null);
     }
   };
 
@@ -129,8 +144,16 @@ export function PlanSelectionDialog({ open, onOpenChange }: PlanSelectionDialogP
                       : ""
                   }`}
                   variant={plan.id === 'free' ? "outline" : "default"}
+                  disabled={processingPlan !== null}
                 >
-                  {plan.id === 'free' ? "Iniciar Gratuitamente" : "Assinar Agora"}
+                  {processingPlan === plan.id ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Processando...
+                    </>
+                  ) : (
+                    plan.id === 'free' ? "Iniciar Gratuitamente" : "Assinar Agora"
+                  )}
                 </Button>
               </CardFooter>
             </Card>

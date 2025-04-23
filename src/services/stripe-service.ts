@@ -1,4 +1,3 @@
-
 import { auth, db } from "@/lib/firebase";
 import { collection, addDoc, getDoc, setDoc, doc, updateDoc, Timestamp } from "firebase/firestore";
 import { userService } from "./user-service";
@@ -38,9 +37,8 @@ export interface UserSubscription {
   selectedCategories?: string[];
 }
 
-// URL da API Stripe
-const STRIPE_API_URL = "https://api.stripe.com/v1";
-const STRIPE_SECRET_KEY = "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";
+// URL da API para funções do Firebase (simulada até você configurar as funções reais)
+const FIREBASE_FUNCTIONS_BASE_URL = "https://us-central1-fornecedores-99ee2.cloudfunctions.net";
 
 // Serviço de Stripe
 class StripeService {
@@ -110,11 +108,10 @@ class StripeService {
     ];
   }
 
-  // Criar sessão de checkout do Stripe
+  // Criar sessão de checkout do Stripe - MODIFICADO para usar Firebase Functions
   async createCheckoutSession(planId: PlanType, userId: string): Promise<string> {
     try {
-      // O plano gratuito agora é tratado diretamente no PlanSelectionDialog
-      // Esta verificação permanece como fallback
+      // O plano gratuito é tratado diretamente no frontend
       if (planId === 'free') {
         await this.registerFreeSubscription(userId);
         return '/dashboard';
@@ -133,41 +130,56 @@ class StripeService {
       const userData = userDoc.data();
       const userEmail = userData.email;
 
-      // Fazer chamada direta à API do Stripe para criar uma sessão de checkout
-      const response = await fetch(`${STRIPE_API_URL}/checkout/sessions`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${STRIPE_SECRET_KEY}`,
-          'Content-Type': 'application/x-www-form-urlencoded'
-        },
-        body: new URLSearchParams({
-          'success_url': `${window.location.origin}/select-categories?plan=${planId}&session_id={CHECKOUT_SESSION_ID}`,
-          'cancel_url': `${window.location.origin}/plans`,
-          'mode': 'subscription',
-          'customer_email': userEmail,
-          'line_items[0][price]': plan.priceId,
-          'line_items[0][quantity]': '1',
-          'payment_method_types[0]': 'card'
-        })
-      });
+      console.log("Iniciando processo de checkout para:", { userId, planId, email: userEmail });
 
-      const session = await response.json();
-      
-      if (session.error) {
-        throw new Error(session.error.message || 'Erro ao criar sessão de checkout');
+      try {
+        // Temporariamente, como solução alternativa até as Cloud Functions estarem configuradas
+        // Isto simula o comportamento - na produção, você substituirá por chamadas reais às funções
+        
+        console.log("Redirecionando para simulação de pagamento");
+        
+        // Adicionar uma entrada de sessão temporária no Firestore
+        const sessionDocRef = await addDoc(collection(db, 'stripeCheckoutSessions'), {
+          userId,
+          planId,
+          priceId: plan.priceId,
+          sessionId: `sim_${Math.random().toString(36).substring(2, 15)}`,
+          status: 'pending',
+          createdAt: Timestamp.now()
+        });
+        
+        // Retornamos URL para a página de simulação
+        return `/payment-simulation?sessionId=${sessionDocRef.id}&planId=${planId}`;
+        
+        /* CÓDIGO PARA USAR QUANDO TIVER CONFIGURADO AS CLOUD FUNCTIONS
+        const response = await fetch(`${FIREBASE_FUNCTIONS_BASE_URL}/createStripeCheckout`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${await auth.currentUser?.getIdToken()}`
+          },
+          body: JSON.stringify({
+            planId,
+            priceId: plan.priceId,
+            userId,
+            userEmail,
+            successUrl: `${window.location.origin}/select-categories?plan=${planId}&session_id={CHECKOUT_SESSION_ID}`,
+            cancelUrl: `${window.location.origin}/plans`
+          })
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Erro ao criar sessão de checkout');
+        }
+
+        const data = await response.json();
+        return data.url;
+        */
+      } catch (error) {
+        console.error("Erro na chamada à função:", error);
+        throw new Error('Não foi possível iniciar o processo de pagamento. Verifique o console para detalhes.');
       }
-
-      // Registrar a sessão no Firestore
-      await addDoc(collection(db, 'stripeCheckoutSessions'), {
-        userId,
-        planId,
-        priceId: plan.priceId,
-        sessionId: session.id,
-        status: 'pending',
-        createdAt: Timestamp.now()
-      });
-      
-      return session.url;
     } catch (error) {
       console.error('Erro ao criar sessão de checkout:', error);
       throw new Error('Não foi possível iniciar o processo de pagamento');

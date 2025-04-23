@@ -1,11 +1,12 @@
-import React, { useEffect } from "react";
+
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Check } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
 import { stripeService, PlanType } from "@/services/stripe-service";
 import { userService } from "@/services/user-service";
 
@@ -13,6 +14,7 @@ export default function PlansPage() {
   const { user, canAccessApp } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [processingPlan, setProcessingPlan] = useState<string | null>(null);
 
   const plans = stripeService.getAvailablePlans();
 
@@ -35,7 +37,13 @@ export default function PlansPage() {
       return navigate("/login");
     }
 
+    // Evita cliques múltiplos
+    if (processingPlan) return;
+    setProcessingPlan(planId);
+
     try {
+      console.log(`Iniciando processo para plano: ${planId}`);
+      
       // Para plano free, registrar a assinatura e redirecionar para o dashboard
       if (planId === 'free') {
         console.log("Atualizando usuário para plano free");
@@ -50,9 +58,17 @@ export default function PlansPage() {
         return;
       }
       
-      // Para planos pagos, redirecionar para o Stripe Checkout
+      // Para planos pagos, redirecionar para o Stripe Checkout ou simulação
       const checkoutUrl = await stripeService.createCheckoutSession(planId, user.id);
-      window.location.href = checkoutUrl;
+      console.log("URL de checkout recebida:", checkoutUrl);
+      
+      // Se for uma URL completa (http/https), navegue externamente
+      if (checkoutUrl.startsWith('http')) {
+        window.location.href = checkoutUrl;
+      } else {
+        // Se for um caminho relativo (/path), use o navigate do React Router
+        navigate(checkoutUrl);
+      }
     } catch (error) {
       console.error("Erro ao iniciar checkout:", error);
       toast({
@@ -60,6 +76,8 @@ export default function PlansPage() {
         description: error instanceof Error ? error.message : "Não foi possível processar sua solicitação",
         variant: "destructive",
       });
+    } finally {
+      setProcessingPlan(null);
     }
   };
 
@@ -132,8 +150,16 @@ export default function PlansPage() {
                     : ""
                 }`}
                 variant={plan.id === 'free' ? "outline" : "default"}
+                disabled={processingPlan !== null}
               >
-                {plan.id === 'free' ? "Iniciar Gratuitamente" : "Assinar Agora"}
+                {processingPlan === plan.id ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Processando...
+                  </>
+                ) : (
+                  plan.id === 'free' ? "Iniciar Gratuitamente" : "Assinar Agora"
+                )}
               </Button>
             </CardFooter>
           </Card>
