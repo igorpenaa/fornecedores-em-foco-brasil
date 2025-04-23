@@ -9,21 +9,23 @@ import { AdsDisplay } from "@/components/dashboard/ads-display";
 import { SharedPlanDialog, usePlanDialog } from "@/components/plans/shared-plan-dialog";
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user, isFirstAccess, markFirstAccessCompleted } = useAuth();
   const location = useLocation();
   const { setIsOpen } = usePlanDialog();
 
-  // Verifica se o usuário pode acessar os recursos premium
   const canAccessFeatures = user?.plano && ['monthly', 'semi_annual', 'annual'].includes(user.plano);
 
-  // Abre o diálogo se vier da navegação após login e não tiver plano definido
   useEffect(() => {
-    // Só mostra o diálogo se for explicitamente solicitado e o usuário não tiver plano
-    // Isso evita que o diálogo reabra após o usuário já ter selecionado o plano gratuito
-    if (location.state?.showPlanDialog && !user?.plano) {
+    // Mostra o diálogo se for o primeiro acesso ou se o usuário tem plano free
+    if (isFirstAccess) {
       setIsOpen(true);
+      
+      // Se for o primeiro acesso e o usuário já tiver um ID, marque como concluído
+      if (user?.id) {
+        markFirstAccessCompleted(user.id);
+      }
     }
-  }, [location.state, setIsOpen, user]);
+  }, [isFirstAccess, user, setIsOpen, markFirstAccessCompleted]);
 
   return (
     <AppLayout title="Dashboard" subtitle="Bem-vindo ao Fornecedores">

@@ -1,189 +1,259 @@
-
-import { createContext, useContext, ReactNode, useEffect } from "react";
+import React, { createContext, useState, useContext, useEffect } from 'react';
+import { User, UserRole } from '@/types';
+import { auth, db } from '@/lib/firebase';
+import { 
+  createUserWithEmailAndPassword, 
+  signInWithEmailAndPassword, 
+  signOut, 
+  updateProfile
+} from "firebase/auth";
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { useToast } from "@/hooks/use-toast";
-import { useAuthState } from "./auth/useAuthState";
-import { createAuthActions } from "./auth/authActions";
-import { createAccessControl } from "./auth/accessControl";
-import { AuthContextType } from "./auth/types";
-import { authService } from "@/services/user-service";
-import { stripeService } from "@/services/stripe-service";
-import { GeniusStatus, PlanType } from "@/types";
+import { useNavigate } from 'react-router-dom';
+import { usePlanDialog } from '@/components/plans/shared-plan-dialog';
+import { authService } from '@/services/user-service';
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+interface AuthContextProps {
+  user: User | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  register: (name: string, email: string, password: string, geniusCoupon?: string) => Promise<void>;
+  logout: () => Promise<void>;
+  hasPermission: (roles: UserRole[]) => boolean;
+  canAccessApp: () => boolean;
+  toggleFavorite: (supplierId: string) => Promise<void>;
+  updateUser: (userData: Partial<User>) => Promise<void>;
+  updateGeniusStatus: (status: string) => Promise<void>;
+  markFirstAccessCompleted: (userId: string) => Promise<void>;
+  isFirstAccess: boolean;
+}
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+const AuthContext = createContext<AuthContextProps>({
+  user: null,
+  isAuthenticated: false,
+  isLoading: true,
+  login: async () => {},
+  register: async () => {},
+  logout: async () => {},
+  hasPermission: () => false,
+  canAccessApp: () => false,
+  toggleFavorite: async () => {},
+  updateUser: async () => {},
+  updateGeniusStatus: async () => {},
+  markFirstAccessCompleted: async () => {},
+  isFirstAccess: false,
+});
+
+export const useAuth = () => useContext(AuthContext);
+
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [user, setUser] = useState<User | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const { toast } = useToast();
-  const { 
-    user, 
-    setUser, 
-    isAuthenticated, 
-    setIsAuthenticated, 
-    subscription, 
-    setSubscription,
-    isLoading 
-  } = useAuthState();
+  const navigate = useNavigate();
+  const { setIsOpen } = usePlanDialog();
 
-  const { login, register, logout } = createAuthActions(setUser, setIsAuthenticated);
-  const { hasPermission, canAccessGenius, hasAccessToCategory } = createAccessControl(user);
-
-  // Adicionar efeito para verificar a assinatura quando o usuário mudar
   useEffect(() => {
-    if (user) {
-      refreshSubscription();
-    }
-  }, [user]);
-
-  const toggleFavorite = async (supplierId: string) => {
-    if (!user) return;
-    
-    try {
-      const newFavorites = await authService.toggleFavorite(user.id, supplierId);
-      setUser(prevUser => {
-        if (!prevUser) return null;
-        return {
-          ...prevUser,
-          favorites: newFavorites
-        };
-      });
-    } catch (error) {
-      console.error("Erro ao atualizar favoritos:", error);
-      toast({
-        variant: "destructive",
-        title: "Erro ao atualizar favoritos",
-        description: "Não foi possível atualizar seus favoritos. Tente novamente.",
-      });
-    }
-  };
-
-  const isFavorite = (supplierId: string): boolean => {
-    if (!user) return false;
-    return user.favorites.includes(supplierId);
-  };
-
-  const updateGeniusStatus = async (userId: string, status: GeniusStatus) => {
-    try {
-      await authService.updateGeniusStatus(userId, status);
-      if (user && user.id === userId) {
-        setUser(prevUser => {
-          if (!prevUser) return null;
-          return {
-            ...prevUser,
-            geniusStatus: status
-          };
-        });
+    const unsubscribe = auth.onAuthStateChanged(async (authUser) => {
+      if (authUser) {
+        try {
+          const userDoc = await authService.getUserById(authUser.uid);
+          setUser(userDoc);
+          setIsAuthenticated(true);
+        } catch (error) {
+          console.error("Erro ao buscar dados do usuário:", error);
+          setIsAuthenticated(false);
+        }
+      } else {
+        setUser(null);
+        setIsAuthenticated(false);
       }
-      toast({
-        title: status === "approved" ? "Acesso liberado!" : "Status atualizado",
-        description: status === "approved" 
-          ? "O aluno agora tem acesso à Rede Genius" 
-          : "O status do aluno foi atualizado."
-      });
-    } catch (error) {
-      console.error("Erro ao atualizar status Genius:", error);
-      toast({
-        variant: "destructive",
-        title: "Erro ao atualizar status",
-        description: "Não foi possível atualizar o status do usuário.",
-      });
-      throw error;
-    }
-  };
+      setIsLoading(false);
+    });
 
-  const refreshSubscription = async () => {
-    if (!user) {
-      setSubscription(null);
-      return null;
-    }
+    return () => unsubscribe();
+  }, []);
 
-    // Usuários admin ou master não precisam de assinatura
-    if (user.role === "admin" || user.role === "master") {
-      // Criar uma assinatura virtual para admin/master com acesso total
-      const adminSubscription = {
-        userId: user.id,
-        planType: "annual" as const,
-        status: "active" as const,
-        startDate: new Date(),
-        endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 10)),
-        selectedCategories: []
-      };
-      setSubscription(adminSubscription);
-      return adminSubscription;
-    }
-
+  const login = async (email: string, password: string) => {
     try {
-      const userSubscription = await stripeService.getUserSubscription(user.id);
-      setSubscription(userSubscription);
+      const user = await authService.login(email, password);
+      setUser(user);
+      setIsAuthenticated(true);
       
-      // Atualizar o campo plano do usuário se necessário
-      if (userSubscription && (!user.plano || user.plano !== userSubscription.planType)) {
-        await authService.updateUser(user.id, { plano: userSubscription.planType as PlanType });
-        setUser(prevUser => {
-          if (!prevUser) return null;
-          return {
-            ...prevUser,
-            plano: userSubscription.planType as PlanType
-          };
-        });
-      }
-      
-      console.log("Assinatura atualizada:", userSubscription);
-      return userSubscription;
-    } catch (error) {
-      console.error("Erro ao carregar assinatura:", error);
+      // Redireciona o usuário para a página de dashboard após o login
+      navigate("/dashboard");
+    } catch (error: any) {
+      console.error("Erro ao fazer login:", error);
       toast({
+        title: "Erro ao fazer login",
+        description: error.message || "Credenciais inválidas",
         variant: "destructive",
-        title: "Erro ao carregar assinatura",
-        description: "Não foi possível carregar os dados da sua assinatura.",
       });
-      return null;
     }
   };
 
-  // Função para verificar se o usuário pode acessar o sistema
+  const register = async (name: string, email: string, password: string, geniusCoupon?: string) => {
+    try {
+      const user = await authService.register(name, email, password, geniusCoupon);
+      setUser(user);
+      setIsAuthenticated(true);
+      
+      // Redireciona o usuário para a página de dashboard após o registro
+      navigate("/dashboard");
+    } catch (error: any) {
+      console.error("Erro ao registrar:", error);
+      toast({
+        title: "Erro ao registrar",
+        description: error.message || "Não foi possível criar a conta",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const logout = async () => {
+    try {
+      await authService.logout();
+      setUser(null);
+      setIsAuthenticated(false);
+      
+      // Redireciona o usuário para a página de login após o logout
+      navigate("/login");
+    } catch (error) {
+      console.error("Erro ao fazer logout:", error);
+      toast({
+        title: "Erro ao fazer logout",
+        description: "Não foi possível fazer logout",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const hasPermission = (roles: UserRole[]): boolean => {
+    return !!user && roles.includes(user.role);
+  };
+
   const canAccessApp = (): boolean => {
-    console.log("Verificando acesso ao app:", user?.role, subscription);
-    
     if (!user) return false;
     
-    // Usuários admin ou master têm acesso total
+    // Admin e master tem acesso irrestrito
     if (user.role === "admin" || user.role === "master") {
-      console.log("Usuário admin/master, acesso permitido");
       return true;
     }
     
-    // Para outros usuários, verificar se tem assinatura ativa
-    const hasSubscription = subscription !== null;
-    console.log("Usuário regular, tem assinatura:", hasSubscription);
-    return hasSubscription;
+    // Se o usuário tem um plano (diferente de 'free'), permite o acesso
+    return !!user.plano;
+  };
+
+  const toggleFavorite = async (supplierId: string) => {
+    if (!user) {
+      toast({
+        title: "Você precisa estar logado",
+        description: "Faça login para adicionar aos favoritos",
+        variant: "destructive",
+      });
+      return navigate("/login");
+    }
+    
+    try {
+      const newFavorites = await authService.toggleFavorite(user.id, supplierId);
+      setUser({ ...user, favorites: newFavorites });
+    } catch (error: any) {
+      console.error("Erro ao adicionar/remover favorito:", error);
+      toast({
+        title: "Erro ao adicionar/remover favorito",
+        description: error.message || "Não foi possível adicionar/remover o favorito",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const updateUser = async (userData: Partial<User>) => {
+    if (!user) {
+      toast({
+        title: "Você precisa estar logado",
+        description: "Faça login para atualizar seu perfil",
+        variant: "destructive",
+      });
+      return navigate("/login");
+    }
+    
+    try {
+      const updatedUser = await authService.updateUser(user.id, userData);
+      setUser({ ...user, ...updatedUser });
+      toast({
+        title: "Perfil atualizado",
+        description: "Seu perfil foi atualizado com sucesso",
+      });
+    } catch (error: any) {
+      console.error("Erro ao atualizar perfil:", error);
+      toast({
+        title: "Erro ao atualizar perfil",
+        description: error.message || "Não foi possível atualizar seu perfil",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const updateGeniusStatus = async (status: string) => {
+    if (!user) {
+      toast({
+        title: "Você precisa estar logado",
+        description: "Faça login para atualizar seu status",
+        variant: "destructive",
+      });
+      return navigate("/login");
+    }
+    
+    try {
+      const newStatus = await authService.updateGeniusStatus(user.id, status);
+      setUser({ ...user, geniusStatus: newStatus });
+      toast({
+        title: "Status atualizado",
+        description: "Seu status foi atualizado com sucesso",
+      });
+    } catch (error: any) {
+      console.error("Erro ao atualizar status:", error);
+      toast({
+        title: "Erro ao atualizar status",
+        description: error.message || "Não foi possível atualizar seu status",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Adicionando uma flag para marcar o primeiro acesso
+  const markFirstAccessCompleted = async (userId: string) => {
+    try {
+      await updateDoc(doc(db, 'users', userId), {
+        firstAccessCompleted: true
+      });
+    } catch (error) {
+      console.error('Erro ao marcar primeiro acesso:', error);
+    }
+  };
+
+  // Modificando o contexto de autenticação para incluir verificação de primeiro acesso
+  const contextValue = {
+    user,
+    isAuthenticated,
+    isLoading,
+    login,
+    register,
+    logout,
+    hasPermission,
+    canAccessApp,
+    toggleFavorite,
+    updateUser,
+    updateGeniusStatus,
+    markFirstAccessCompleted,
+    isFirstAccess: user && (!user.firstAccessCompleted || user.plano === 'free')
   };
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      isAuthenticated, 
-      login, 
-      register, 
-      logout, 
-      hasPermission,
-      toggleFavorite,
-      isFavorite,
-      updateGeniusStatus,
-      canAccessGenius,
-      subscription,
-      refreshSubscription,
-      hasAccessToCategory,
-      isLoading,
-      canAccessApp
-    }}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );
-}
-
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error("useAuth deve ser usado dentro de um AuthProvider");
-  }
-  return context;
-}
+};
