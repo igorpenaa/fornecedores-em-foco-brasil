@@ -113,9 +113,9 @@ class StripeService {
   async createCheckoutSession(planId: PlanType, userId: string): Promise<string> {
     try {
       if (planId === 'free') {
-        // Se for plano gratuito, apenas registrar a "assinatura" gratuita
+        // If it's a free plan, register the free subscription and redirect to dashboard
         await this.registerFreeSubscription(userId);
-        return '/select-categories?plan=free';
+        return '/dashboard'; // Direct navigation to dashboard
       }
 
       const plan = this.getAvailablePlans().find(p => p.id === planId);
