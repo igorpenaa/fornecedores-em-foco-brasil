@@ -10,7 +10,6 @@ import {
 } from "firebase/auth";
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { useToast } from "@/hooks/use-toast";
-import { useNavigate } from 'react-router-dom';
 import { usePlanDialog } from '@/components/plans/shared-plan-dialog';
 import { authService } from '@/services/user-service';
 import { UserSubscription } from '@/services/stripe-service';
@@ -59,14 +58,22 @@ const AuthContext = createContext<AuthContextProps>({
 
 export const useAuth = () => useContext(AuthContext);
 
+// Create a wrapper component that will provide the Router context for AuthProvider
+export const AuthProviderWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  return (
+    <>{children}</>
+  );
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [subscription, setSubscription] = useState<UserSubscription | null>(null);
   const { toast } = useToast();
-  const navigate = useNavigate();
   const { setIsOpen } = usePlanDialog();
+
+  // Remove the useNavigate hook here since it causes the Router context error
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (authUser) => {
@@ -95,9 +102,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(user);
       setIsAuthenticated(true);
       
-      // Redireciona o usuário para a página de dashboard após o login
-      navigate("/dashboard");
-      
       return user;
     } catch (error: any) {
       console.error("Erro ao fazer login:", error);
@@ -115,9 +119,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const user = await authService.register(name, email, password, geniusCoupon);
       setUser(user);
       setIsAuthenticated(true);
-      
-      // Redireciona o usuário para a página de dashboard após o registro
-      navigate("/dashboard");
       
       return user;
     } catch (error: any) {
@@ -137,8 +138,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(null);
       setIsAuthenticated(false);
       
-      // Redireciona o usuário para a página de login após o logout
-      navigate("/login");
+      // We'll handle navigation in the component that calls logout
     } catch (error) {
       console.error("Erro ao fazer logout:", error);
       toast({
@@ -192,7 +192,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         description: "Faça login para adicionar aos favoritos",
         variant: "destructive",
       });
-      return navigate("/login");
+      // Navigation will be handled by the component that calls this
+      return;
     }
     
     try {
@@ -215,7 +216,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         description: "Faça login para atualizar seu perfil",
         variant: "destructive",
       });
-      return navigate("/login");
+      // Navigation will be handled by the component that calls this
+      return;
     }
     
     try {
@@ -235,14 +237,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const updateGeniusStatus = async (userId: string, status: GeniusStatus) => {
+  // Fix the updateGeniusStatus function to return Promise<void> to match the interface
+  const updateGeniusStatus = async (userId: string, status: GeniusStatus): Promise<void> => {
     if (!user) {
       toast({
         title: "Você precisa estar logado",
         description: "Faça login para atualizar seu status",
         variant: "destructive",
       });
-      return navigate("/login");
+      return;
     }
     
     try {
@@ -254,7 +257,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         title: "Status atualizado",
         description: "Status atualizado com sucesso",
       });
-      return newStatus;
     } catch (error: any) {
       console.error("Erro ao atualizar status:", error);
       toast({
@@ -262,7 +264,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         description: error.message || "Não foi possível atualizar o status",
         variant: "destructive",
       });
-      throw error;
     }
   };
 
