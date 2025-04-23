@@ -4,20 +4,20 @@ import { AppLayout } from "@/components/layout/app-layout";
 import { SupplierCard } from "@/components/suppliers/supplier-card";
 import { AlertCircle } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useNavigate } from "react-router-dom";
 import { useEffect } from "react";
+import { SharedPlanDialog, usePlanDialog } from "@/components/plans/shared-plan-dialog";
 
 export default function Favorites() {
   const { user, canAccessGenius } = useAuth();
   const { suppliers } = useData();
-  const navigate = useNavigate();
+  const { setIsOpen } = usePlanDialog();
 
-  // Prevent access to favorites for free plan users
+  // Mostrar diálogo de planos para usuários do plano gratuito
   useEffect(() => {
     if (user?.plano === 'free') {
-      navigate('/plans');
+      setIsOpen(true);
     }
-  }, [user, navigate]);
+  }, [user, setIsOpen]);
 
   // Helper function to check if user is a Genius student with pending access
   const isGeniusStudentPending = user?.geniusCoupon === "ALUNOREDEGENIUS" && user?.geniusStatus !== "approved";
@@ -109,6 +109,7 @@ export default function Favorites() {
           ))}
         </div>
       )}
+      <SharedPlanDialog />
     </AppLayout>
   );
 }
