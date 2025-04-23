@@ -1,5 +1,5 @@
 
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/auth-context";
 import { AppLayout } from "@/components/layout/app-layout";
@@ -11,27 +11,47 @@ import { SharedPlanDialog, usePlanDialog } from "@/components/plans/shared-plan-
 export default function Dashboard() {
   const { user, isFirstAccess, markFirstAccessCompleted } = useAuth();
   const location = useLocation();
-  const { setIsOpen } = usePlanDialog();
+  const { setIsOpen, userClosedDialog, resetUserClosed } = usePlanDialog();
+  const effectExecuted = useRef(false);
 
   const canAccessFeatures = user?.plano && ['monthly', 'semi_annual', 'annual'].includes(user.plano);
 
-  // Fix: Add dependency array and only run the effect when necessary conditions change
+  // Efeito para controlar a abertura do diálogo de planos
   useEffect(() => {
-    // Check if dialog should be shown based on first access or location state
+    // Se o usuário fechou o diálogo manualmente, não reabra
+    if (userClosedDialog) return;
+    
+    // Evitar múltiplas execuções do efeito no mesmo ciclo de vida
+    if (effectExecuted.current) return;
+    
+    // Verificar se o diálogo deve ser mostrado
     const shouldShowDialog = 
       isFirstAccess || 
       (location.state && location.state.showPlanDialog);
       
-    // Only open the dialog if shouldShowDialog is true
     if (shouldShowDialog) {
       setIsOpen(true);
+      effectExecuted.current = true;
       
-      // If it's the first access and the user has an ID, mark it as completed
+      // Se for o primeiro acesso e o usuário tiver um ID, marque como concluído
       if (isFirstAccess && user?.id) {
         markFirstAccessCompleted(user.id);
       }
     }
-  }, [isFirstAccess, user?.id, markFirstAccessCompleted, setIsOpen, location.state]);
+    
+    // Limpar o state para evitar que ele persista após navegação
+    if (location.state?.showPlanDialog) {
+      window.history.replaceState({}, document.title);
+    }
+  }, [isFirstAccess, user?.id, markFirstAccessCompleted, setIsOpen, location.state, userClosedDialog]);
+  
+  // Resetar o state de userClosed ao desmontar o componente
+  useEffect(() => {
+    return () => {
+      resetUserClosed();
+      effectExecuted.current = false;
+    };
+  }, [resetUserClosed]);
 
   return (
     <AppLayout title="Dashboard" subtitle="Bem-vindo ao Fornecedores">

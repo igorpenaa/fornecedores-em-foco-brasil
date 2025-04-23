@@ -32,11 +32,12 @@ export function PlanSelectionDialog({ open, onOpenChange }: PlanSelectionDialogP
     }
 
     try {
-      // Para o plano gratuito, feche o diálogo e navegue direto para o dashboard
+      // Fechar o diálogo ANTES de qualquer operação assíncrona
+      onOpenChange(false);
+      
+      // Para o plano gratuito
       if (planId === 'free') {
         await stripeService.registerFreeSubscription(user.id);
-        onOpenChange(false); // Feche o diálogo
-        navigate('/dashboard'); // Navegue para o dashboard
         toast({
           title: "Plano gratuito ativado",
           description: "Você agora tem acesso aos fornecedores gratuitos",
