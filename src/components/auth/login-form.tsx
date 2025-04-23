@@ -32,7 +32,7 @@ const loginSchema = z.object({
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 export function LoginForm() {
-  const { login, canAccessApp, user } = useAuth();
+  const { login, canAccessApp } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
@@ -59,11 +59,13 @@ export function LoginForm() {
       if (userData.role === "admin" || userData.role === "master") {
         navigate("/dashboard");
       } 
-      // Senão, verifica se tem acesso (assinatura) e redireciona adequadamente
-      else if (canAccessApp()) {
+      // Se não tiver plano pago, redireciona para o dashboard com o diálogo de planos aberto
+      else if (!userData.plano || userData.plano === 'free') {
+        navigate("/dashboard", { state: { showPlanDialog: true } });
+      }
+      // Se tiver plano pago, vai direto para o dashboard
+      else {
         navigate("/dashboard");
-      } else {
-        navigate("/plans");
       }
     } catch (error) {
       console.error("Erro capturado no formulário:", error);

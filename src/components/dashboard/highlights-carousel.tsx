@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { 
   Carousel,
@@ -11,7 +10,12 @@ import { useAuth } from "@/contexts/auth-context";
 import { Highlight } from "@/types";
 import { useData } from "@/contexts/data-context";
 
-export function HighlightsCarousel() {
+interface HighlightsCarouselProps {
+  disabled?: boolean;
+  onUpgradeRequired: () => void;
+}
+
+export function HighlightsCarousel({ disabled = false, onUpgradeRequired }: HighlightsCarouselProps) {
   const [api, setApi] = useState<any>();
   const [current, setCurrent] = useState(0);
   const { user } = useAuth();
@@ -28,7 +32,6 @@ export function HighlightsCarousel() {
     });
   }, [api]);
 
-  // Initialize automatic sliding
   useEffect(() => {
     if (!api || highlights.length <= 1) return;
     
@@ -48,13 +51,24 @@ export function HighlightsCarousel() {
     
     setupTimer();
     
-    // Clear timer on component unmount
     return () => {
       if (autoplayTimerRef.current) {
         clearTimeout(autoplayTimerRef.current);
       }
     };
   }, [api, current, highlights]);
+
+  const handleHighlightClick = (e: React.MouseEvent, link: string | undefined) => {
+    if (disabled) {
+      e.preventDefault();
+      onUpgradeRequired();
+      return;
+    }
+    
+    if (link) {
+      window.location.href = link;
+    }
+  };
 
   if (highlights.length === 0) {
     return null;
@@ -66,7 +80,11 @@ export function HighlightsCarousel() {
         <CarouselContent className="h-full">
           {highlights.map((highlight) => (
             <CarouselItem key={highlight.id} className="h-full">
-              <a href={highlight.link || "#"} className="block h-full w-full relative">
+              <a 
+                href={highlight.link || "#"} 
+                className={`block h-full w-full relative ${disabled ? 'opacity-70' : ''}`}
+                onClick={(e) => handleHighlightClick(e, highlight.link)}
+              >
                 {highlight.mediaType === "image" ? (
                   <img 
                     src={highlight.mediaUrl} 
@@ -93,7 +111,6 @@ export function HighlightsCarousel() {
         <CarouselPrevious className="left-4" />
         <CarouselNext className="right-4" />
         
-        {/* Dot indicators */}
         <div className="absolute bottom-4 left-0 right-0 flex justify-center space-x-2">
           {highlights.map((_, index) => (
             <button
@@ -108,7 +125,6 @@ export function HighlightsCarousel() {
         </div>
       </Carousel>
       
-      {/* Admin edit button */}
       {(user?.role === "master" || user?.role === "admin") && (
         <div className="absolute top-4 right-4 z-10">
           <a 
