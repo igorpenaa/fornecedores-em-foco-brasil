@@ -1,14 +1,16 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { getAvailablePlans } from "./plans-config";
 import { freeSubscriptionService } from "./free-subscription-service";
 import { paidSubscriptionService } from "./paid-subscription-service";
 import { subscriptionManagementService } from "./subscription-management-service";
+import { PlanType } from "./types";
 
 class StripeService {
   getAvailablePlans = getAvailablePlans;
 
   // Create checkout session for subscription
-  async createCheckoutSession(planId: string, userId: string): Promise<string> {
+  async createCheckoutSession(planId: PlanType, userId: string): Promise<string> {
     try {
       // For free plan, register directly without Stripe checkout
       if (planId === 'free') {
@@ -52,7 +54,7 @@ class StripeService {
   // Check subscription status
   async checkSubscription(userId: string): Promise<{
     subscribed: boolean;
-    planType?: string;
+    planType?: PlanType;
     subscriptionEnd?: string;
   }> {
     try {
@@ -107,7 +109,7 @@ class StripeService {
   hasAccessToCategory = subscriptionManagementService.hasAccessToCategory;
 
   // Simular pagamento (apenas para fins de demonstração)
-  async simulatePaymentSuccess(sessionId: string, userId: string, planType: string): Promise<void> {
+  async simulatePaymentSuccess(sessionId: string, userId: string, planType: PlanType): Promise<void> {
     try {
       // Em um cenário real, isso viria da resposta do webhook do Stripe
       const mockStripeCustomerId = `cus_${Math.random().toString(36).substring(2, 15)}`;
