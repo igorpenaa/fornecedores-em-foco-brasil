@@ -7,7 +7,7 @@ import { ProductsShowcase } from "@/components/dashboard/products-showcase";
 import { AdsDisplay } from "@/components/dashboard/ads-display";
 import { SharedPlanDialog, usePlanDialog } from "@/components/plans/shared-plan-dialog";
 import { useSearchParams } from "react-router-dom";
-import { useToast } from "@/components/toast";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Dashboard() {
   const { user, isFirstAccess, markFirstAccessCompleted } = useAuth();
