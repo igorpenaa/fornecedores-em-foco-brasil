@@ -37,7 +37,7 @@ export function PlanSelectionDialog({ open, onOpenChange }: PlanSelectionDialogP
     setProcessingPlan(planId);
 
     try {
-      // Fechar o diálogo ANTES de qualquer operação assíncrona
+      // Fechar o diálogo imediatamente para evitar problemas de estado
       onOpenChange(false);
       
       // Para o plano gratuito
@@ -47,6 +47,7 @@ export function PlanSelectionDialog({ open, onOpenChange }: PlanSelectionDialogP
           title: "Plano gratuito ativado",
           description: "Você agora tem acesso aos fornecedores gratuitos",
         });
+        navigate("/dashboard");
         return;
       }
 
@@ -54,11 +55,11 @@ export function PlanSelectionDialog({ open, onOpenChange }: PlanSelectionDialogP
       const checkoutUrl = await stripeService.createCheckoutSession(planId, user.id);
       console.log("URL de checkout recebida:", checkoutUrl);
       
-      // Se for uma URL completa (http/https), navegue externamente
+      // No caso da migração para Supabase, vamos manter o comportamento de redirecionamento
+      // e apenas modificar o back-end posteriormente
       if (checkoutUrl.startsWith('http')) {
         window.location.href = checkoutUrl;
       } else {
-        // Se for um caminho relativo (/path), use o navigate do React Router
         navigate(checkoutUrl);
       }
     } catch (error) {
@@ -68,7 +69,6 @@ export function PlanSelectionDialog({ open, onOpenChange }: PlanSelectionDialogP
         description: error instanceof Error ? error.message : "Não foi possível processar sua solicitação",
         variant: "destructive",
       });
-    } finally {
       setProcessingPlan(null);
     }
   };
