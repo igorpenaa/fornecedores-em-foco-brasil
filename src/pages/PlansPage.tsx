@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/auth-context";
@@ -7,7 +6,7 @@ import { AppLayout } from "@/components/layout/app-layout";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Check, Loader2 } from "lucide-react";
-import { stripeService, PlanType } from "@/services/stripe-service";
+import { stripeService, PlanType } from "@/services/stripe/stripe-service";
 import { userService } from "@/services/user-service";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
@@ -21,7 +20,6 @@ export default function PlansPage() {
 
   const plans = stripeService.getAvailablePlans();
 
-  // Redirecionar admin/master para o dashboard
   useEffect(() => {
     console.log("PlansPage - user role:", user?.role);
     if (user && (user.role === "admin" || user.role === "master")) {
@@ -40,17 +38,14 @@ export default function PlansPage() {
       return navigate("/login");
     }
 
-    // Reset error message
     setErrorMessage(null);
 
-    // Evita cliques múltiplos
     if (processingPlan) return;
     setProcessingPlan(planId);
 
     try {
       console.log(`Iniciando processo para plano: ${planId}`);
       
-      // Para plano free, registrar a assinatura e redirecionar para o dashboard
       if (planId === 'free') {
         console.log("Atualizando usuário para plano free");
         await stripeService.registerFreeSubscription(user.id);
@@ -64,21 +59,17 @@ export default function PlansPage() {
         return;
       }
       
-      // Para planos pagos, redirecionar para o Stripe Checkout ou simulação
       const checkoutUrl = await stripeService.createCheckoutSession(planId, user.id);
       console.log("URL de checkout recebida:", checkoutUrl);
       
-      // Se for uma URL completa (http/https), navegue externamente
       if (checkoutUrl.startsWith('http')) {
         window.location.href = checkoutUrl;
       } else {
-        // Se for um caminho relativo (/path), use o navigate do React Router
         navigate(checkoutUrl);
       }
     } catch (error) {
       console.error("Erro ao iniciar checkout:", error);
       
-      // Store and show error message
       const errorMsg = error instanceof Error ? error.message : "Não foi possível processar sua solicitação";
       setErrorMessage(errorMsg);
       
@@ -92,7 +83,6 @@ export default function PlansPage() {
     }
   };
 
-  // Se for um usuário admin ou master, não mostra a página de planos
   if (user && (user.role === "admin" || user.role === "master")) {
     return null;
   }
