@@ -227,21 +227,32 @@ serve(async (req) => {
     // Buscar usuário por ID diretamente sem esperar um UUID
     const { data: userData, error: userError } = await supabaseAdmin
       .from('user_profiles')
-      .select('email')
+      .select('email, stripe_customer_id')
       .eq('id', userId)
       .maybeSingle();
 
-    if (userError || !userData) {
-      logStep("ERROR: Could not find user", { error: userError?.message, userId });
+    if (userError) {
+      logStep("ERROR: Failed to fetch user", { error: userError.message });
       return new Response(
-        JSON.stringify({ error: `User not found: ${userError?.message || 'Unknown error'}` }),
+        JSON.stringify({ error: `Failed to fetch user: ${userError.message}` }),
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
+    }
+
+    if (!userData) {
+      logStep("ERROR: User not found", { userId });
+      return new Response(
+        JSON.stringify({ error: "User not found" }),
         { 
           status: 404, 
           headers: { ...corsHeaders, "Content-Type": "application/json" } 
         }
       );
     }
-    
+
     if (!userData.email) {
       logStep("ERROR: User email not found");
       return new Response(
@@ -254,31 +265,30 @@ serve(async (req) => {
     }
 
     // Verificar se o usuário já existe como cliente no Stripe
-    let customerId;
+    let customerId = userData.stripe_customer_id;
     try {
-      const email = userData.email;
-      logStep("Checking if user exists as Stripe customer", { email });
-      const customers = await stripe.customers.list({ 
-        email: email,
-        limit: 1
-      });
-      
-      if (customers.data.length > 0) {
-        customerId = customers.data[0].id;
-        logStep("Found existing Stripe customer", { customerId });
-      } else {
-        // Criar um novo cliente no Stripe
+      if (!customerId) {
+        logStep("Creating new Stripe customer", { email: userData.email });
         const newCustomer = await stripe.customers.create({
-          email: email,
+          email: userData.email,
           metadata: {
             userId: userId
           }
         });
         customerId = newCustomer.id;
+
+        // Atualizar o stripe_customer_id no perfil do usuário
+        await supabaseAdmin
+          .from('user_profiles')
+          .update({ stripe_customer_id: customerId })
+          .eq('id', userId);
+
         logStep("Created new Stripe customer", { customerId });
+      } else {
+        logStep("Using existing Stripe customer", { customerId });
       }
     } catch (stripeError) {
-      logStep("ERROR: Failed to check or create Stripe customer", { error: String(stripeError) });
+      logStep("ERROR: Failed to manage Stripe customer", { error: String(stripeError) });
       return new Response(
         JSON.stringify({ error: `Stripe error: ${String(stripeError)}` }),
         { 
@@ -290,8 +300,8 @@ serve(async (req) => {
     
     // Criar a sessão de checkout
     try {
-      const origin = req.headers.get('origin') || 'https://id-preview--686bd920-c5cb-4628-8600-94a0584b0d92.lovable.app';
-      logStep("Creating checkout session with origin", { origin });
+      const origin = req.headers.get('origin') || 'http://localhost:8080';
+      logStep("Creating checkout session", { origin, customerId, planId });
       
       const session = await stripe.checkout.sessions.create({
         customer: customerId,
@@ -308,10 +318,15 @@ serve(async (req) => {
         metadata: {
           userId: userId,
           planId: planId
+        },
+        allow_promotion_codes: true,
+        billing_address_collection: 'required',
+        customer_update: {
+          address: 'auto'
         }
       });
       
-      logStep("Checkout session created", { sessionId: session.id, url: session.url });
+      logStep("Checkout session created", { sessionId: session.id });
       
       // Registrar a sessão de checkout no banco de dados
       await supabaseAdmin
@@ -325,11 +340,16 @@ serve(async (req) => {
           created_at: new Date().toISOString()
         });
       
-      // Retornar a URL de checkout
-      return new Response(JSON.stringify({ url: session.url }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      });
+      return new Response(
+        JSON.stringify({ 
+          sessionId: session.id,
+          url: session.url 
+        }), 
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        }
+      );
     } catch (checkoutError: any) {
       logStep("ERROR: Failed to create checkout session", { error: String(checkoutError) });
       return new Response(
