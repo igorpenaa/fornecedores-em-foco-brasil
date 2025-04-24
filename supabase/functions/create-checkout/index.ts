@@ -44,7 +44,13 @@ serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       logStep("ERROR: No authorization header");
-      throw new Error("No authorization header provided");
+      return new Response(
+        JSON.stringify({ error: "No authorization header provided" }),
+        { 
+          status: 401, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
     }
     
     // Authenticate user
@@ -53,13 +59,25 @@ serve(async (req) => {
     
     if (userError) {
       logStep("ERROR: Authentication error", { message: userError.message });
-      throw new Error(`Authentication error: ${userError.message}`);
+      return new Response(
+        JSON.stringify({ error: `Authentication error: ${userError.message}` }),
+        { 
+          status: 401, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
     }
     
     const user = userData.user;
     if (!user) {
       logStep("ERROR: User not authenticated");
-      throw new Error("User not authenticated");
+      return new Response(
+        JSON.stringify({ error: "User not authenticated" }),
+        { 
+          status: 401, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
     }
     
     logStep("User authenticated", { userId: user.id });
@@ -68,6 +86,7 @@ serve(async (req) => {
     let requestData;
     try {
       requestData = await req.json();
+      logStep("Request data parsed", requestData);
     } catch (jsonError) {
       logStep("ERROR: Invalid JSON in request body");
       return new Response(
@@ -107,7 +126,7 @@ serve(async (req) => {
       // Update user profile with free plan
       const { error: updateError } = await supabaseAdmin
         .from('user_profiles')
-        .update({ plano: 'free' })
+        .update({ plan: 'free' })
         .eq('id', user.id);
       
       if (updateError) {
@@ -173,6 +192,8 @@ serve(async (req) => {
     
     // Create the checkout session
     const origin = req.headers.get('origin') || 'http://localhost:5173';
+    logStep("Creating checkout session with origin", { origin });
+    
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       payment_method_types: ['card'],
