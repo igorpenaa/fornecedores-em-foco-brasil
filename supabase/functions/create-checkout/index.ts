@@ -65,13 +65,32 @@ serve(async (req) => {
     logStep("User authenticated", { userId: user.id });
 
     // Get request data
-    const requestData = await req.json().catch(() => ({}));
+    let requestData;
+    try {
+      requestData = await req.json();
+    } catch (jsonError) {
+      logStep("ERROR: Invalid JSON in request body");
+      return new Response(
+        JSON.stringify({ error: "Invalid JSON in request body" }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
+    }
+    
     const { planId } = requestData;
     logStep("Received request data", { planId });
 
     if (!planId) {
       logStep("ERROR: Missing plan ID");
-      throw new Error("Plan ID is required");
+      return new Response(
+        JSON.stringify({ error: "Plan ID is required" }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
     }
 
     // For free plan, handle it directly
@@ -116,7 +135,13 @@ serve(async (req) => {
     const priceId = prices[planId as keyof typeof prices];
     if (!priceId) {
       logStep("ERROR: Invalid plan ID");
-      throw new Error(`Invalid plan ID: ${planId}`);
+      return new Response(
+        JSON.stringify({ error: `Invalid plan ID: ${planId}` }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
     }
     
     // Check if user already exists as a Stripe customer
@@ -168,6 +193,7 @@ serve(async (req) => {
     
     logStep("Checkout session created", { sessionId: session.id, url: session.url });
     
+    // Return the checkout URL
     return new Response(JSON.stringify({ url: session.url }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
@@ -176,6 +202,7 @@ serve(async (req) => {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logStep("ERROR in create-checkout", { message: errorMessage });
     
+    // Return a proper error response
     return new Response(JSON.stringify({ error: errorMessage }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
