@@ -196,7 +196,7 @@ class StripeService {
       // For Supabase, we'll update the user's profile with the free plan
       const { error } = await supabase
         .from('user_profiles')
-        .update({ plano: 'free' })
+        .update({ plan: 'free' })
         .eq('id', userId);
 
       if (error) {
