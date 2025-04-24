@@ -1,9 +1,9 @@
 
 // IDs dos preços no Stripe
 export const PRICE_IDS = {
-  MONTHLY: "price_1RDxMLF8ZVI3gHwE4BYIgzy1",      // Mensal - R$ 47,00
-  SEMI_ANNUAL: "price_1RDxRCF8ZVI3gHwEhCAB049h",  // Semestral - R$ 145,00
-  ANNUAL: "price_1RDxRCF8ZVI3gHwEbf17KfeO"        // Anual - R$ 193,00
+  MONTHLY: "price_1RHSBjF8ZVI3gHwEhAFQHohQ",      // Mensal - R$ 47,00
+  SEMI_ANNUAL: "price_1RHSCpF8ZVI3gHwEvCvRPy3w",  // Semestral - R$ 145,00
+  ANNUAL: "price_1RHSCpF8ZVI3gHwEDBNsrmXI"        // Anual - R$ 193,00
 } as const;
 
 export const getAvailablePlans = () => [

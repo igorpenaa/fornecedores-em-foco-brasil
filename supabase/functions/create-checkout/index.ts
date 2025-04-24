@@ -22,8 +22,8 @@ serve(async (req) => {
   try {
     logStep("Function started");
 
-    // Get Stripe secret from environment
-    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+    // Get Stripe secret from environment - using the new key provided
+    const stripeKey = "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";
     if (!stripeKey) {
       logStep("ERROR: Missing Stripe secret key");
       throw new Error("STRIPE_SECRET_KEY is not set");
@@ -144,11 +144,11 @@ serve(async (req) => {
     // For paid plans, create a Stripe checkout session
     logStep("Creating Stripe checkout session for plan", { planId });
     
-    // Define prices based on plan
+    // Define prices based on plan - using the new price IDs provided
     const prices = {
-      'monthly': 'price_1RDxMLF8ZVI3gHwE4BYIgzy1',
-      'semi_annual': 'price_1RDxRCF8ZVI3gHwEhCAB049h',
-      'annual': 'price_1RDxRCF8ZVI3gHwEbf17KfeO'
+      'monthly': 'price_1RHSBjF8ZVI3gHwEhAFQHohQ',      // Mensal - R$ 47,00
+      'semi_annual': 'price_1RHSCpF8ZVI3gHwEvCvRPy3w',  // Semestral - R$ 145,00
+      'annual': 'price_1RHSCpF8ZVI3gHwEDBNsrmXI'        // Anual - R$ 193,00
     };
     
     const priceId = prices[planId as keyof typeof prices];

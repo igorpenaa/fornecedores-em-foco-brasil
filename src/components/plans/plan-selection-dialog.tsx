@@ -23,7 +23,10 @@ export function PlanSelectionDialog({ open, onOpenChange }: PlanSelectionDialogP
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const plans = stripeService.getAvailablePlans();
 
-  const handleSelectPlan = async (planId: PlanType) => {
+  const handleSelectPlan = async (planId: string) => {
+    // Validate that planId is a valid PlanType
+    const validPlanId = planId as PlanType;
+    
     if (!user) {
       toast({
         title: "Você precisa estar logado",
@@ -48,7 +51,7 @@ export function PlanSelectionDialog({ open, onOpenChange }: PlanSelectionDialogP
       onOpenChange(false);
       
       // Para o plano gratuito
-      if (planId === 'free') {
+      if (validPlanId === 'free') {
         await stripeService.registerFreeSubscription(user.id);
         toast({
           title: "Plano gratuito ativado",
@@ -59,7 +62,7 @@ export function PlanSelectionDialog({ open, onOpenChange }: PlanSelectionDialogP
       }
 
       // Para planos pagos, redirecionar para o Stripe Checkout ou simulação
-      const checkoutUrl = await stripeService.createCheckoutSession(planId, user.id);
+      const checkoutUrl = await stripeService.createCheckoutSession(validPlanId, user.id);
       console.log("URL de checkout recebida:", checkoutUrl);
       
       // Se for uma URL completa (http/https), navegue externamente

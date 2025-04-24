@@ -30,7 +30,10 @@ export default function PlansPage() {
     }
   }, [user, navigate]);
 
-  const handleSelectPlan = async (planId: PlanType) => {
+  const handleSelectPlan = async (planId: string) => {
+    // Validate that planId is a valid PlanType
+    const validPlanId = planId as PlanType;
+    
     if (!user) {
       toast({
         title: "Você precisa estar logado",
@@ -48,7 +51,7 @@ export default function PlansPage() {
     try {
       console.log(`Iniciando processo para plano: ${planId}`);
       
-      if (planId === 'free') {
+      if (validPlanId === 'free') {
         console.log("Atualizando usuário para plano free");
         await stripeService.registerFreeSubscription(user.id);
         
@@ -61,7 +64,7 @@ export default function PlansPage() {
         return;
       }
       
-      const checkoutUrl = await stripeService.createCheckoutSession(planId, user.id);
+      const checkoutUrl = await stripeService.createCheckoutSession(validPlanId, user.id);
       console.log("URL de checkout recebida:", checkoutUrl);
       
       if (checkoutUrl.startsWith('http')) {
