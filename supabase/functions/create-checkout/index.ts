@@ -22,11 +22,11 @@ serve(async (req) => {
   try {
     logStep("Function started");
 
-    // Get Stripe secret from environment - using the new key provided
-    const stripeKey = "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";
+    // Get Stripe secret from environment variable (properly set in Supabase)
+    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (!stripeKey) {
       logStep("ERROR: Missing Stripe secret key");
-      throw new Error("STRIPE_SECRET_KEY is not set");
+      throw new Error("STRIPE_SECRET_KEY is not set in environment variables");
     }
 
     // Initialize Stripe
@@ -88,7 +88,7 @@ serve(async (req) => {
       requestData = await req.json();
       logStep("Request data parsed", requestData);
     } catch (jsonError) {
-      logStep("ERROR: Invalid JSON in request body");
+      logStep("ERROR: Invalid JSON in request body", { error: String(jsonError) });
       return new Response(
         JSON.stringify({ error: "Invalid JSON in request body" }),
         { 
@@ -144,7 +144,7 @@ serve(async (req) => {
     // For paid plans, create a Stripe checkout session
     logStep("Creating Stripe checkout session for plan", { planId });
     
-    // Define prices based on plan - using the new price IDs provided
+    // Define prices based on plan - using the correct price IDs
     const prices = {
       'monthly': 'price_1RHSBjF8ZVI3gHwEhAFQHohQ',      // Mensal - R$ 47,00
       'semi_annual': 'price_1RHSCpF8ZVI3gHwEvCvRPy3w',  // Semestral - R$ 145,00
@@ -164,64 +164,81 @@ serve(async (req) => {
     }
     
     // Check if user already exists as a Stripe customer
-    const { data: customers, error: customerError } = await stripe.customers.list({ 
-      email: user.email,
-      limit: 1
-    });
-    
-    if (customerError) {
-      logStep("ERROR: Failed to check Stripe customer", { error: customerError });
-      throw new Error(`Failed to check Stripe customer: ${customerError}`);
-    }
-    
     let customerId;
-    if (customers.data.length > 0) {
-      customerId = customers.data[0].id;
-      logStep("Found existing Stripe customer", { customerId });
-    } else {
-      // Create a new Stripe customer
-      const newCustomer = await stripe.customers.create({
+    try {
+      const customers = await stripe.customers.list({ 
         email: user.email,
-        metadata: {
-          userId: user.id
-        }
+        limit: 1
       });
-      customerId = newCustomer.id;
-      logStep("Created new Stripe customer", { customerId });
+      
+      if (customers.data.length > 0) {
+        customerId = customers.data[0].id;
+        logStep("Found existing Stripe customer", { customerId });
+      } else {
+        // Create a new Stripe customer
+        const newCustomer = await stripe.customers.create({
+          email: user.email,
+          metadata: {
+            userId: user.id
+          }
+        });
+        customerId = newCustomer.id;
+        logStep("Created new Stripe customer", { customerId });
+      }
+    } catch (stripeError) {
+      logStep("ERROR: Failed to check or create Stripe customer", { error: String(stripeError) });
+      return new Response(
+        JSON.stringify({ error: `Stripe error: ${String(stripeError)}` }),
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
     }
     
     // Create the checkout session
-    const origin = req.headers.get('origin') || 'http://localhost:5173';
-    logStep("Creating checkout session with origin", { origin });
-    
-    const session = await stripe.checkout.sessions.create({
-      customer: customerId,
-      payment_method_types: ['card'],
-      line_items: [
-        {
-          price: priceId,
-          quantity: 1,
-        },
-      ],
-      mode: 'subscription',
-      success_url: `${origin}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/plans`,
-      metadata: {
-        userId: user.id,
-        planId: planId
-      }
-    });
-    
-    logStep("Checkout session created", { sessionId: session.id, url: session.url });
-    
-    // Return the checkout URL
-    return new Response(JSON.stringify({ url: session.url }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 200,
-    });
+    try {
+      const origin = req.headers.get('origin') || 'http://localhost:5173';
+      logStep("Creating checkout session with origin", { origin });
+      
+      const session = await stripe.checkout.sessions.create({
+        customer: customerId,
+        payment_method_types: ['card'],
+        line_items: [
+          {
+            price: priceId,
+            quantity: 1,
+          },
+        ],
+        mode: 'subscription',
+        success_url: `${origin}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${origin}/plans`,
+        metadata: {
+          userId: user.id,
+          planId: planId
+        }
+      });
+      
+      logStep("Checkout session created", { sessionId: session.id, url: session.url });
+      
+      // Return the checkout URL
+      return new Response(JSON.stringify({ url: session.url }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    } catch (checkoutError) {
+      logStep("ERROR: Failed to create checkout session", { error: String(checkoutError) });
+      return new Response(
+        JSON.stringify({ error: `Failed to create checkout session: ${String(checkoutError)}` }),
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
+    }
   } catch (error: any) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logStep("ERROR in create-checkout", { message: errorMessage });
+    logStep("FATAL ERROR in create-checkout", { message: errorMessage });
     
     // Return a proper error response
     return new Response(JSON.stringify({ error: errorMessage }), {
