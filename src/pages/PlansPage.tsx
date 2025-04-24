@@ -63,6 +63,7 @@ export default function PlansPage() {
         return;
       }
       
+      // Passar o ID do usuário explicitamente
       const checkoutUrl = await stripeService.createCheckoutSession(validPlanId, user.id);
       console.log("URL de checkout recebida:", checkoutUrl);
       

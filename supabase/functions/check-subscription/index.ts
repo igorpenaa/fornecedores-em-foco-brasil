@@ -40,26 +40,29 @@ serve(async (req) => {
     // Verificar se há dados no corpo da requisição
     let requestData;
     try {
-      if (req.body) {
-        const reader = req.body.getReader();
-        const { value } = await reader.read();
-        const bodyText = new TextDecoder().decode(value);
+      if (!req.body) {
+        logStep("No request body");
+        requestData = {};
+      } else {
+        const bodyText = await req.text();
         logStep("Request body as text", { bodyText });
         
         if (!bodyText || bodyText.trim() === '') {
           logStep("No JSON body or empty body");
           requestData = {};
         } else {
-          requestData = JSON.parse(bodyText);
-          logStep("Request data parsed", requestData);
+          try {
+            requestData = JSON.parse(bodyText);
+            logStep("Request data parsed", requestData);
+          } catch (jsonError) {
+            logStep("JSON parse error", { error: String(jsonError) });
+            requestData = {};
+          }
         }
-      } else {
-        logStep("No request body");
-        requestData = {};
       }
-    } catch (jsonError) {
+    } catch (bodyError) {
       // Se não conseguir fazer parse do corpo, isso pode ser uma requisição GET
-      logStep("No JSON body or parse error (GET request likely)", { error: String(jsonError) });
+      logStep("Error reading request body (GET request likely)", { error: String(bodyError) });
       requestData = {};
     }
     

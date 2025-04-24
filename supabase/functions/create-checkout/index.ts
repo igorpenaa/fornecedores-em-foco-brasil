@@ -52,28 +52,48 @@ serve(async (req) => {
     let requestData;
     
     try {
-      if (req.body) {
-        const reader = req.body.getReader();
-        const { value } = await reader.read();
-        const bodyText = new TextDecoder().decode(value);
-        logStep("Request body as text", { bodyText });
-        
-        if (!bodyText || bodyText.trim() === '') {
-          logStep("ERROR: Empty request body");
-          throw new Error("Empty request body");
-        }
-        
-        requestData = JSON.parse(bodyText);
-      } else {
+      if (!req.body) {
         logStep("ERROR: No request body");
-        throw new Error("No request body");
+        return new Response(
+          JSON.stringify({ error: "No request body provided" }),
+          { 
+            status: 400, 
+            headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          }
+        );
       }
       
-      logStep("Request data parsed", requestData);
-    } catch (jsonError) {
-      logStep("ERROR: Invalid JSON in request body", { error: String(jsonError) });
+      const bodyText = await req.text();
+      logStep("Request body as text", { bodyText });
+      
+      if (!bodyText || bodyText.trim() === '') {
+        logStep("ERROR: Empty request body");
+        return new Response(
+          JSON.stringify({ error: "Empty request body" }),
+          { 
+            status: 400, 
+            headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          }
+        );
+      }
+      
+      try {
+        requestData = JSON.parse(bodyText);
+        logStep("Request data parsed", requestData);
+      } catch (jsonError) {
+        logStep("ERROR: Invalid JSON in request body", { error: String(jsonError) });
+        return new Response(
+          JSON.stringify({ error: `Invalid JSON in request body: ${String(jsonError)}` }),
+          { 
+            status: 400, 
+            headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          }
+        );
+      }
+    } catch (bodyError) {
+      logStep("ERROR: Failed to read request body", { error: String(bodyError) });
       return new Response(
-        JSON.stringify({ error: `Invalid JSON in request body: ${String(jsonError)}` }),
+        JSON.stringify({ error: `Failed to read request body: ${String(bodyError)}` }),
         { 
           status: 400, 
           headers: { ...corsHeaders, "Content-Type": "application/json" } 

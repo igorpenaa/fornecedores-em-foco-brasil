@@ -61,7 +61,7 @@ export function PlanSelectionDialog({ open, onOpenChange }: PlanSelectionDialogP
         return;
       }
 
-      // Para planos pagos, redirecionar para o Stripe Checkout
+      // Passar o ID do usuário explicitamente
       const checkoutUrl = await stripeService.createCheckoutSession(validPlanId, user.id);
       console.log("URL de checkout recebida:", checkoutUrl);
       
