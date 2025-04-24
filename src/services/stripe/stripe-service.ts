@@ -26,9 +26,9 @@ class StripeService {
           throw new Error("ID do plano e ID do usuário são obrigatórios");
         }
 
-        // Para planos pagos, chamar a função Edge do Supabase com tratamento de erro robusto
+        // Correção importante: estruturar o body corretamente de acordo com a documentação do Supabase
         const { data, error } = await supabase.functions.invoke('create-checkout', {
-          body: JSON.stringify({ planId, userId }), // Garantir que o body seja uma string JSON
+          body: { planId, userId },
           headers: {
             "Content-Type": "application/json"
           }
@@ -71,8 +71,9 @@ class StripeService {
       }
 
       try {
+        // Correção importante: estruturar o body corretamente de acordo com a documentação do Supabase
         const { data, error } = await supabase.functions.invoke('check-subscription', {
-          body: JSON.stringify({ userId }), // Garantir que o body seja uma string JSON
+          body: { userId },
           headers: {
             "Content-Type": "application/json"
           }

@@ -37,33 +37,21 @@ serve(async (req) => {
     );
     logStep("Supabase client initialized");
 
-    // Verificar se há dados no corpo da requisição
+    // Processar o body da requisição
     let requestData;
     try {
-      if (!req.body) {
-        logStep("No request body");
-        requestData = {};
-      } else {
-        const bodyText = await req.text();
-        logStep("Request body as text", { bodyText });
-        
-        if (!bodyText || bodyText.trim() === '') {
-          logStep("No JSON body or empty body");
-          requestData = {};
-        } else {
-          try {
-            requestData = JSON.parse(bodyText);
-            logStep("Request data parsed", requestData);
-          } catch (jsonError) {
-            logStep("JSON parse error", { error: String(jsonError) });
-            requestData = {};
-          }
+      // Correção importante: utilizar corretamente o body do request
+      requestData = await req.json();
+      logStep("Request data parsed", requestData);
+    } catch (jsonError) {
+      logStep("JSON parse error", { error: String(jsonError) });
+      return new Response(
+        JSON.stringify({ error: "Invalid JSON in request body" }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
         }
-      }
-    } catch (bodyError) {
-      // Se não conseguir fazer parse do corpo, isso pode ser uma requisição GET
-      logStep("Error reading request body (GET request likely)", { error: String(bodyError) });
-      requestData = {};
+      );
     }
     
     const { userId } = requestData;

@@ -48,52 +48,17 @@ serve(async (req) => {
     );
     logStep("Supabase client initialized");
     
-    // Verifica se a requisição tem corpo JSON
+    // Processar o body da requisição
     let requestData;
     
     try {
-      if (!req.body) {
-        logStep("ERROR: No request body");
-        return new Response(
-          JSON.stringify({ error: "No request body provided" }),
-          { 
-            status: 400, 
-            headers: { ...corsHeaders, "Content-Type": "application/json" } 
-          }
-        );
-      }
-      
-      const bodyText = await req.text();
-      logStep("Request body as text", { bodyText });
-      
-      if (!bodyText || bodyText.trim() === '') {
-        logStep("ERROR: Empty request body");
-        return new Response(
-          JSON.stringify({ error: "Empty request body" }),
-          { 
-            status: 400, 
-            headers: { ...corsHeaders, "Content-Type": "application/json" } 
-          }
-        );
-      }
-      
-      try {
-        requestData = JSON.parse(bodyText);
-        logStep("Request data parsed", requestData);
-      } catch (jsonError) {
-        logStep("ERROR: Invalid JSON in request body", { error: String(jsonError) });
-        return new Response(
-          JSON.stringify({ error: `Invalid JSON in request body: ${String(jsonError)}` }),
-          { 
-            status: 400, 
-            headers: { ...corsHeaders, "Content-Type": "application/json" } 
-          }
-        );
-      }
-    } catch (bodyError) {
-      logStep("ERROR: Failed to read request body", { error: String(bodyError) });
+      // Correção importante: utilizar corretamente o body do request
+      requestData = await req.json();
+      logStep("Request data parsed", requestData);
+    } catch (jsonError) {
+      logStep("ERROR: Invalid JSON in request body", { error: String(jsonError) });
       return new Response(
-        JSON.stringify({ error: `Failed to read request body: ${String(bodyError)}` }),
+        JSON.stringify({ error: `Invalid JSON in request body: ${String(jsonError)}` }),
         { 
           status: 400, 
           headers: { ...corsHeaders, "Content-Type": "application/json" } 
