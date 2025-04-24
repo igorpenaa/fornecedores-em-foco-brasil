@@ -19,6 +19,7 @@ export function PlanSelectionDialog({ open, onOpenChange }: PlanSelectionDialogP
   const { toast } = useToast();
   const navigate = useNavigate();
   const [processingPlan, setProcessingPlan] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const plans = stripeService.getAvailablePlans();
 
   const handleSelectPlan = async (planId: PlanType) => {
@@ -32,11 +33,16 @@ export function PlanSelectionDialog({ open, onOpenChange }: PlanSelectionDialogP
       return navigate("/login");
     }
 
+    // Reset error message
+    setErrorMessage(null);
+
     // Evita cliques múltiplos
     if (processingPlan) return;
     setProcessingPlan(planId);
 
     try {
+      console.log(`Iniciando processo para plano: ${planId}`);
+      
       // Fechar o diálogo imediatamente para evitar problemas de estado
       onOpenChange(false);
       
@@ -55,20 +61,29 @@ export function PlanSelectionDialog({ open, onOpenChange }: PlanSelectionDialogP
       const checkoutUrl = await stripeService.createCheckoutSession(planId, user.id);
       console.log("URL de checkout recebida:", checkoutUrl);
       
-      // No caso da migração para Supabase, vamos manter o comportamento de redirecionamento
-      // e apenas modificar o back-end posteriormente
+      // Se for uma URL completa (http/https), navegue externamente
       if (checkoutUrl.startsWith('http')) {
         window.location.href = checkoutUrl;
       } else {
+        // Se for um caminho relativo (/path), use o navigate do React Router
         navigate(checkoutUrl);
       }
     } catch (error) {
       console.error("Erro ao iniciar checkout:", error);
+      
+      // Store error message
+      const errorMsg = error instanceof Error ? error.message : "Não foi possível processar sua solicitação";
+      setErrorMessage(errorMsg);
+      
       toast({
         title: "Erro ao processar",
-        description: error instanceof Error ? error.message : "Não foi possível processar sua solicitação",
+        description: errorMsg,
         variant: "destructive",
       });
+      
+      // Reopen the dialog to show the error
+      onOpenChange(true);
+    } finally {
       setProcessingPlan(null);
     }
   };
@@ -82,6 +97,15 @@ export function PlanSelectionDialog({ open, onOpenChange }: PlanSelectionDialogP
             Selecione o plano ideal para acessar todos os recursos
           </DialogDescription>
         </DialogHeader>
+        
+        {errorMessage && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+            <p className="font-medium">Erro ao processar:</p>
+            <p>{errorMessage}</p>
+            <p className="text-sm mt-1">Por favor, tente novamente ou entre em contato com o suporte.</p>
+          </div>
+        )}
+        
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mt-4">
           {plans.map((plan) => (
             <Card 

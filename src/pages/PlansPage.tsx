@@ -9,12 +9,15 @@ import { Button } from "@/components/ui/button";
 import { Check, Loader2 } from "lucide-react";
 import { stripeService, PlanType } from "@/services/stripe-service";
 import { userService } from "@/services/user-service";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 
 export default function PlansPage() {
   const { user, canAccessApp } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [processingPlan, setProcessingPlan] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const plans = stripeService.getAvailablePlans();
 
@@ -36,6 +39,9 @@ export default function PlansPage() {
       });
       return navigate("/login");
     }
+
+    // Reset error message
+    setErrorMessage(null);
 
     // Evita cliques múltiplos
     if (processingPlan) return;
@@ -71,9 +77,14 @@ export default function PlansPage() {
       }
     } catch (error) {
       console.error("Erro ao iniciar checkout:", error);
+      
+      // Store and show error message
+      const errorMsg = error instanceof Error ? error.message : "Não foi possível processar sua solicitação";
+      setErrorMessage(errorMsg);
+      
       toast({
         title: "Erro ao processar",
-        description: error instanceof Error ? error.message : "Não foi possível processar sua solicitação",
+        description: errorMsg,
         variant: "destructive",
       });
     } finally {
@@ -88,6 +99,19 @@ export default function PlansPage() {
 
   return (
     <AppLayout title="Planos de Assinatura" subtitle="Escolha o plano ideal para o seu negócio">
+      {errorMessage && (
+        <Alert variant="destructive" className="mb-6">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Erro ao processar pagamento</AlertTitle>
+          <AlertDescription>
+            {errorMessage}
+            <p className="mt-2">
+              Se o problema persistir, entre em contato com o suporte técnico.
+            </p>
+          </AlertDescription>
+        </Alert>
+      )}
+      
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         {plans.map((plan) => (
           <Card 

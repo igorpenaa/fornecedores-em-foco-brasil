@@ -38,9 +38,6 @@ export interface UserSubscription {
   selectedCategories?: string[];
 }
 
-// URL da API para funções do Firebase (simulada até você configurar as funções reais)
-const FIREBASE_FUNCTIONS_BASE_URL = "https://us-central1-fornecedores-99ee2.cloudfunctions.net";
-
 // Serviço de Stripe
 class StripeService {
   // Obter todos os planos disponíveis
@@ -120,24 +117,32 @@ class StripeService {
 
       console.log("Creating checkout session for plan:", planId);
       
-      // For paid plans, call Supabase edge function
-      const { data, error } = await supabase.functions.invoke('create-checkout', {
-        body: { planId }
-      });
+      try {
+        // For paid plans, call Supabase edge function with robust error handling
+        const { data, error } = await supabase.functions.invoke('create-checkout', {
+          body: { planId },
+          headers: {
+            "Content-Type": "application/json"
+          }
+        });
 
-      console.log("Checkout response:", { data, error });
+        console.log("Checkout response:", { data, error });
 
-      if (error) {
-        console.error("Error during checkout:", error);
-        throw new Error(error.message || "Failed to create checkout session");
+        if (error) {
+          console.error("Error during checkout:", error);
+          throw new Error(error.message || "Failed to create checkout session");
+        }
+        
+        if (!data?.url) {
+          throw new Error('No checkout URL returned from the server');
+        }
+
+        return data.url;
+      } catch (error: any) {
+        console.error('Error calling create-checkout function:', error);
+        throw new Error(`Checkout error: ${error.message || "Unknown error"}`);
       }
-      
-      if (!data?.url) {
-        throw new Error('No checkout URL returned');
-      }
-
-      return data.url;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating checkout session:', error);
       throw error;
     }
@@ -152,21 +157,30 @@ class StripeService {
     try {
       console.log("Checking subscription for user:", userId);
       
-      const { data, error } = await supabase.functions.invoke('check-subscription');
+      try {
+        const { data, error } = await supabase.functions.invoke('check-subscription', {
+          headers: {
+            "Content-Type": "application/json"
+          }
+        });
 
-      console.log("Subscription check response:", { data, error });
+        console.log("Subscription check response:", { data, error });
 
-      if (error) {
-        console.error("Error checking subscription:", error);
+        if (error) {
+          console.error("Error checking subscription:", error);
+          throw error;
+        }
+        
+        return {
+          subscribed: data.subscribed,
+          planType: data.plan_type,
+          subscriptionEnd: data.subscription_end
+        };
+      } catch (error: any) {
+        console.error('Error calling check-subscription function:', error);
         throw error;
       }
-      
-      return {
-        subscribed: data.subscribed,
-        planType: data.plan_type,
-        subscriptionEnd: data.subscription_end
-      };
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error checking subscription:', error);
       
       // Return default values on error to prevent UI crashes
@@ -179,6 +193,18 @@ class StripeService {
   // Registrar assinatura gratuita
   async registerFreeSubscription(userId: string): Promise<void> {
     try {
+      // For Supabase, we'll update the user's profile with the free plan
+      const { error } = await supabase
+        .from('user_profiles')
+        .update({ plano: 'free' })
+        .eq('id', userId);
+
+      if (error) {
+        console.error('Error updating user plan:', error);
+        throw new Error('Não foi possível ativar o plano gratuito');
+      }
+
+      // For backwards compatibility with Firebase, keep this code
       const now = new Date();
       const endDate = new Date();
       endDate.setFullYear(endDate.getFullYear() + 99); // "Expiração" longa para plano gratuito
@@ -192,10 +218,12 @@ class StripeService {
         selectedCategories: []
       };
       
-      await setDoc(doc(db, 'subscriptions', userId), subscription);
-      
-      // Atualizar o campo plano do usuário
-      await userService.updateUserPlan(userId, 'free');
+      try {
+        await setDoc(doc(db, 'subscriptions', userId), subscription);
+      } catch (fbError) {
+        console.error('Firebase error (non-critical):', fbError);
+        // Continue with Supabase (Firebase is just for backward compatibility)
+      }
     } catch (error) {
       console.error('Erro ao registrar assinatura gratuita:', error);
       throw new Error('Não foi possível ativar o plano gratuito');

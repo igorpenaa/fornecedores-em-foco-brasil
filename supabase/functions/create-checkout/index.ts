@@ -1,6 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import Stripe from "https://esm.sh/stripe@14.21.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -21,17 +22,31 @@ serve(async (req) => {
   try {
     logStep("Function started");
 
-    // Initialize Supabase client with anon key
+    // Get Stripe secret from environment
+    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+    if (!stripeKey) {
+      logStep("ERROR: Missing Stripe secret key");
+      throw new Error("STRIPE_SECRET_KEY is not set");
+    }
+
+    // Initialize Stripe
+    const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
+    logStep("Stripe initialized");
+
+    // Initialize Supabase client
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_ANON_KEY") ?? ""
     );
+    logStep("Supabase client initialized");
     
     // Get authorization header
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("No authorization header provided");
-    logStep("Authorization header found");
-
+    if (!authHeader) {
+      logStep("ERROR: No authorization header");
+      throw new Error("No authorization header provided");
+    }
+    
     // Authenticate user
     const token = authHeader.replace("Bearer ", "");
     const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
@@ -50,7 +65,7 @@ serve(async (req) => {
     logStep("User authenticated", { userId: user.id });
 
     // Get request data
-    const requestData = await req.json();
+    const requestData = await req.json().catch(() => ({}));
     const { planId } = requestData;
     logStep("Received request data", { planId });
 
@@ -59,12 +74,19 @@ serve(async (req) => {
       throw new Error("Plan ID is required");
     }
 
-    // For free plan, we'll handle it directly without Stripe checkout
+    // For free plan, handle it directly
     if (planId === 'free') {
       logStep("Processing free plan");
       
+      // Use service role key for admin access to update user profile
+      const supabaseAdmin = createClient(
+        Deno.env.get("SUPABASE_URL") ?? "",
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+        { auth: { persistSession: false } }
+      );
+      
       // Update user profile with free plan
-      const { error: updateError } = await supabaseClient
+      const { error: updateError } = await supabaseAdmin
         .from('user_profiles')
         .update({ plano: 'free' })
         .eq('id', user.id);
@@ -81,19 +103,76 @@ serve(async (req) => {
       });
     }
 
-    // For paid plans, we would normally create a Stripe checkout session
-    // Since we don't have Stripe integrated yet, we'll simulate the process
+    // For paid plans, create a Stripe checkout session
+    logStep("Creating Stripe checkout session for plan", { planId });
     
-    // In a real implementation, we would create a Stripe checkout session here
-    // For now, simulate by redirecting to a payment simulation page
-    const simulationUrl = `/payment-simulation?planId=${planId}&sessionId=sim_${Date.now()}`;
-    logStep("Redirecting to payment simulation", { url: simulationUrl });
+    // Define prices based on plan
+    const prices = {
+      'monthly': 'price_1RDxMLF8ZVI3gHwE4BYIgzy1',
+      'semi_annual': 'price_1RDxRCF8ZVI3gHwEhCAB049h',
+      'annual': 'price_1RDxRCF8ZVI3gHwEbf17KfeO'
+    };
     
-    return new Response(JSON.stringify({ url: simulationUrl }), {
+    const priceId = prices[planId as keyof typeof prices];
+    if (!priceId) {
+      logStep("ERROR: Invalid plan ID");
+      throw new Error(`Invalid plan ID: ${planId}`);
+    }
+    
+    // Check if user already exists as a Stripe customer
+    const { data: customers, error: customerError } = await stripe.customers.list({ 
+      email: user.email,
+      limit: 1
+    });
+    
+    if (customerError) {
+      logStep("ERROR: Failed to check Stripe customer", { error: customerError });
+      throw new Error(`Failed to check Stripe customer: ${customerError}`);
+    }
+    
+    let customerId;
+    if (customers.data.length > 0) {
+      customerId = customers.data[0].id;
+      logStep("Found existing Stripe customer", { customerId });
+    } else {
+      // Create a new Stripe customer
+      const newCustomer = await stripe.customers.create({
+        email: user.email,
+        metadata: {
+          userId: user.id
+        }
+      });
+      customerId = newCustomer.id;
+      logStep("Created new Stripe customer", { customerId });
+    }
+    
+    // Create the checkout session
+    const origin = req.headers.get('origin') || 'http://localhost:5173';
+    const session = await stripe.checkout.sessions.create({
+      customer: customerId,
+      payment_method_types: ['card'],
+      line_items: [
+        {
+          price: priceId,
+          quantity: 1,
+        },
+      ],
+      mode: 'subscription',
+      success_url: `${origin}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/plans`,
+      metadata: {
+        userId: user.id,
+        planId: planId
+      }
+    });
+    
+    logStep("Checkout session created", { sessionId: session.id, url: session.url });
+    
+    return new Response(JSON.stringify({ url: session.url }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
-  } catch (error) {
+  } catch (error: any) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logStep("ERROR in create-checkout", { message: errorMessage });
     

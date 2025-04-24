@@ -1,6 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import Stripe from "https://esm.sh/stripe@14.21.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -22,16 +23,26 @@ serve(async (req) => {
   try {
     logStep("Function started");
 
-    // Get authorization header
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("No authorization header provided");
-    logStep("Authorization header found");
+    // Get Stripe secret from environment
+    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+    if (!stripeKey) {
+      logStep("ERROR: Missing Stripe secret key");
+      throw new Error("STRIPE_SECRET_KEY is not set");
+    }
 
-    // Initialize Supabase client with anon key
+    // Initialize Supabase client
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_ANON_KEY") ?? ""
     );
+    logStep("Supabase client initialized");
+
+    // Get authorization header
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      logStep("ERROR: No authorization header");
+      throw new Error("No authorization header provided");
+    }
 
     // Authenticate user
     const token = authHeader.replace("Bearer ", "");
@@ -50,10 +61,14 @@ serve(async (req) => {
     
     logStep("User authenticated", { userId: user.id, email: user.email });
 
-    // For now, simulate getting subscription information from Firebase
-    // In a production environment, this would be replaced with calls to Stripe's API
+    // Initialize Stripe
+    const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
+    logStep("Stripe initialized");
+
+    // Try to get an existing subscription from the database first
+    logStep("Checking user profile for subscription data");
     
-    // Check if user has plan information (simulated logic)
+    // Get the user profile which might contain plan information
     const { data: userProfile, error: profileError } = await supabaseClient
       .from('user_profiles')
       .select('plano')
@@ -64,11 +79,11 @@ serve(async (req) => {
       logStep("Failed to get user profile", { error: profileError.message });
     }
     
-    // Determine subscription status based on plan
+    // Get the plan from user profile
     const plano = userProfile?.plano || null;
     const isSubscribed = plano !== null && plano !== 'free';
     
-    // Calculate end date (for demonstration)
+    // For demonstration purposes, calculate an end date based on plan
     let subscriptionEnd = null;
     if (isSubscribed) {
       const endDate = new Date();
@@ -97,7 +112,7 @@ serve(async (req) => {
       status: 200,
     });
     
-  } catch (error) {
+  } catch (error: any) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logStep("ERROR in check-subscription", { message: errorMessage });
     
