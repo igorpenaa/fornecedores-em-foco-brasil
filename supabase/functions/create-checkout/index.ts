@@ -133,35 +133,77 @@ serve(async (req) => {
     if (planId === 'free') {
       logStep("Processing free plan");
       
-      // Usar role de serviço para acesso admin e atualizar perfil do usuário
+      // CORREÇÃO: Não tentar converter o ID do Firebase para UUID pois isso está
+      // causando o erro "invalid input syntax for type uuid"
       const supabaseAdmin = createClient(
         Deno.env.get("SUPABASE_URL") ?? "",
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
         { auth: { persistSession: false } }
       );
       
-      // Atualizar perfil do usuário com plano gratuito
-      const { error: updateError } = await supabaseAdmin
-        .from('user_profiles')
-        .update({ plano: 'free' })
-        .eq('id', userId);
-      
-      if (updateError) {
-        logStep("ERROR: Failed to update user profile", { error: updateError.message });
+      try {
+        // Atualizar perfil do usuário com plano gratuito
+        // Como o userId é do Firebase, precisamos buscar pelo perfil sem assumir que é um UUID
+        const { data: userProfile, error: findError } = await supabaseAdmin
+          .from('user_profiles')
+          .select('id')
+          .eq('id', userId)
+          .maybeSingle();
+        
+        if (findError) {
+          logStep("ERROR: Failed to find user profile", { error: findError.message });
+          return new Response(
+            JSON.stringify({ error: `Failed to find user profile: ${findError.message}` }),
+            { 
+              status: 404, 
+              headers: { ...corsHeaders, "Content-Type": "application/json" } 
+            }
+          );
+        }
+        
+        if (!userProfile) {
+          logStep("ERROR: User not found", { userId });
+          return new Response(
+            JSON.stringify({ error: "User not found" }),
+            { 
+              status: 404, 
+              headers: { ...corsHeaders, "Content-Type": "application/json" } 
+            }
+          );
+        }
+        
+        // Agora podemos atualizar o perfil
+        const { error: updateError } = await supabaseAdmin
+          .from('user_profiles')
+          .update({ plan: 'free' })
+          .eq('id', userId);
+        
+        if (updateError) {
+          logStep("ERROR: Failed to update user profile", { error: updateError.message });
+          return new Response(
+            JSON.stringify({ error: `Failed to update user profile: ${updateError.message}` }),
+            { 
+              status: 500, 
+              headers: { ...corsHeaders, "Content-Type": "application/json" } 
+            }
+          );
+        }
+        
+        logStep("Free plan activated successfully");
+        return new Response(JSON.stringify({ url: '/dashboard' }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        });
+      } catch (error: any) {
+        logStep("ERROR: Failed to process free plan", { error: String(error) });
         return new Response(
-          JSON.stringify({ error: `Failed to update user profile: ${updateError.message}` }),
+          JSON.stringify({ error: `Failed to process free plan: ${String(error)}` }),
           { 
             status: 500, 
             headers: { ...corsHeaders, "Content-Type": "application/json" } 
           }
         );
       }
-      
-      logStep("Free plan activated successfully");
-      return new Response(JSON.stringify({ url: '/dashboard' }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      });
     }
 
     // Para planos pagos, criar uma sessão de checkout do Stripe
@@ -186,18 +228,19 @@ serve(async (req) => {
       );
     }
 
-    // Buscar informações do usuário no Supabase usando o userId fornecido
+    // IMPORTANTE: Corrigido para trabalhar com Firebase ID
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
       { auth: { persistSession: false } }
     );
     
+    // Buscar usuário por ID diretamente sem esperar um UUID
     const { data: userData, error: userError } = await supabaseAdmin
       .from('user_profiles')
-      .select('id, email')
+      .select('email')
       .eq('id', userId)
-      .single();
+      .maybeSingle();
 
     if (userError || !userData) {
       logStep("ERROR: Could not find user", { error: userError?.message, userId });

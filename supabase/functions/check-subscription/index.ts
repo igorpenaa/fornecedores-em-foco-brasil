@@ -40,7 +40,7 @@ serve(async (req) => {
     // CORREÇÃO: Processar o body da requisição com tratamento de erro robusto
     let requestData;
     try {
-      // Verificar se o body está vazio ou é nulo antes de fazer parsing
+      // Verificar se o body está vazio ou é nulo
       if (!req.body) {
         logStep("ERROR: Request body is null");
         return new Response(
@@ -116,11 +116,12 @@ serve(async (req) => {
     );
     
     // Obter o perfil do usuário que pode conter informações do plano
+    // CORREÇÃO: Trabalhar com Firebase ID (não assumindo que é UUID)
     const { data: userProfile, error: profileError } = await supabaseAdmin
       .from('user_profiles')
-      .select('plano, email')
+      .select('plan, email')
       .eq('id', userId)
-      .single();
+      .maybeSingle();
     
     if (profileError) {
       logStep("Failed to get user profile", { error: profileError.message });
@@ -145,7 +146,7 @@ serve(async (req) => {
     }
     
     // Obter o plano do perfil do usuário
-    const plano = userProfile?.plano || null;
+    const plano = userProfile?.plan || null;
     const isSubscribed = plano !== null && plano !== 'free';
     
     // Para fins de demonstração, calcular uma data de término com base no plano

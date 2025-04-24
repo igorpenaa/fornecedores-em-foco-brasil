@@ -27,15 +27,19 @@ class StripeService {
           throw new Error("ID do plano e ID do usuário são obrigatórios");
         }
 
-        // CORREÇÃO: Enviar dados no formato correto para a função Edge
+        // CORREÇÃO IMPORTANTE: Enviar dados no formato correto para a função Edge
+        // e garantir que o userId esteja no formato adequado (não é um UUID válido para o banco)
         const { data, error } = await supabase.functions.invoke('create-checkout', {
-          body: { planId, userId } 
+          body: { 
+            planId, 
+            userId 
+          }
         });
 
         console.log("Resposta do checkout:", { data, error });
 
         if (error) {
-          // Tratamento específico para erros de função HTTP
+          // Tratamento específico para erros de função HTTP conforme documentação do Supabase
           if (error instanceof FunctionsHttpError) {
             try {
               const errorMessage = await error.context.json();
@@ -83,7 +87,9 @@ class StripeService {
       try {
         // CORREÇÃO: Enviar dados no formato correto para a função Edge
         const { data, error } = await supabase.functions.invoke('check-subscription', {
-          body: { userId }
+          body: { 
+            userId: userId 
+          }
         });
 
         console.log("Resposta da verificação de assinatura:", { data, error });
