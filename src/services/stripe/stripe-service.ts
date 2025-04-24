@@ -28,7 +28,7 @@ class StripeService {
 
         // Para planos pagos, chamar a função Edge do Supabase com tratamento de erro robusto
         const { data, error } = await supabase.functions.invoke('create-checkout', {
-          body: JSON.stringify({ planId, userId }), // Certifique-se de que o corpo seja uma string JSON válida
+          body: { planId, userId },
           headers: {
             "Content-Type": "application/json"
           }
@@ -72,7 +72,7 @@ class StripeService {
 
       try {
         const { data, error } = await supabase.functions.invoke('check-subscription', {
-          body: JSON.stringify({ userId }), // Certifique-se de que o corpo seja uma string JSON válida
+          body: { userId }, 
           headers: {
             "Content-Type": "application/json"
           }

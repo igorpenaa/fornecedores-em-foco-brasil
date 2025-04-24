@@ -50,20 +50,30 @@ serve(async (req) => {
     
     // Verifica se a requisição tem corpo JSON
     let requestData;
+    
     try {
-      const bodyText = await req.text();
-      logStep("Request body as text", { bodyText });
-      
-      if (!bodyText || bodyText.trim() === '') {
-        throw new Error("Empty request body");
+      if (req.body) {
+        const reader = req.body.getReader();
+        const { value } = await reader.read();
+        const bodyText = new TextDecoder().decode(value);
+        logStep("Request body as text", { bodyText });
+        
+        if (!bodyText || bodyText.trim() === '') {
+          logStep("ERROR: Empty request body");
+          throw new Error("Empty request body");
+        }
+        
+        requestData = JSON.parse(bodyText);
+      } else {
+        logStep("ERROR: No request body");
+        throw new Error("No request body");
       }
       
-      requestData = JSON.parse(bodyText);
       logStep("Request data parsed", requestData);
     } catch (jsonError) {
       logStep("ERROR: Invalid JSON in request body", { error: String(jsonError) });
       return new Response(
-        JSON.stringify({ error: "Invalid JSON in request body" }),
+        JSON.stringify({ error: `Invalid JSON in request body: ${String(jsonError)}` }),
         { 
           status: 400, 
           headers: { ...corsHeaders, "Content-Type": "application/json" } 
@@ -225,7 +235,7 @@ serve(async (req) => {
     
     // Criar a sessão de checkout
     try {
-      const origin = req.headers.get('origin') || 'http://localhost:5173';
+      const origin = req.headers.get('origin') || 'https://id-preview--686bd920-c5cb-4628-8600-94a0584b0d92.lovable.app';
       logStep("Creating checkout session with origin", { origin });
       
       const session = await stripe.checkout.sessions.create({

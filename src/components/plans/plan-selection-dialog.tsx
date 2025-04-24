@@ -47,9 +47,6 @@ export function PlanSelectionDialog({ open, onOpenChange }: PlanSelectionDialogP
     try {
       console.log(`Iniciando processo para plano: ${planId} para usuário: ${user.id}`);
       
-      // Fechar o diálogo imediatamente para evitar problemas de estado
-      onOpenChange(false);
-      
       // Para o plano gratuito
       if (validPlanId === 'free') {
         await stripeService.registerFreeSubscription(user.id);
@@ -57,6 +54,9 @@ export function PlanSelectionDialog({ open, onOpenChange }: PlanSelectionDialogP
           title: "Plano gratuito ativado",
           description: "Você agora tem acesso aos fornecedores gratuitos",
         });
+        
+        // Fechar o diálogo e navegar para o dashboard
+        onOpenChange(false);
         navigate("/dashboard");
         return;
       }
@@ -64,6 +64,9 @@ export function PlanSelectionDialog({ open, onOpenChange }: PlanSelectionDialogP
       // Para planos pagos, redirecionar para o Stripe Checkout
       const checkoutUrl = await stripeService.createCheckoutSession(validPlanId, user.id);
       console.log("URL de checkout recebida:", checkoutUrl);
+      
+      // Fechar o diálogo antes de redirecionar
+      onOpenChange(false);
       
       // Se for uma URL completa (http/https), navegue externamente
       if (checkoutUrl.startsWith('http')) {
@@ -84,9 +87,6 @@ export function PlanSelectionDialog({ open, onOpenChange }: PlanSelectionDialogP
         description: errorMsg,
         variant: "destructive",
       });
-      
-      // Reopen the dialog to show the error
-      onOpenChange(true);
     } finally {
       setProcessingPlan(null);
     }
