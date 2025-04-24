@@ -23,7 +23,7 @@ class StripeService {
       try {
         // For paid plans, call Supabase edge function with robust error handling
         const { data, error } = await supabase.functions.invoke('create-checkout', {
-          body: { planId },
+          body: { planId, userId },
           headers: {
             "Content-Type": "application/json"
           }
@@ -62,6 +62,7 @@ class StripeService {
       
       try {
         const { data, error } = await supabase.functions.invoke('check-subscription', {
+          body: { userId },
           headers: {
             "Content-Type": "application/json"
           }

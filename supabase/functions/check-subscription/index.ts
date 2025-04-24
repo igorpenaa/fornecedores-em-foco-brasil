@@ -8,14 +8,14 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Helper logging function for enhanced debugging
+// Função de log para depuração aprimorada
 const logStep = (step: string, details?: any) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
   console.log(`[CHECK-SUBSCRIPTION] ${step}${detailsStr}`);
 };
 
 serve(async (req) => {
-  // Handle CORS preflight requests
+  // Lidar com requisições OPTIONS (CORS preflight)
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -23,67 +23,87 @@ serve(async (req) => {
   try {
     logStep("Function started");
 
-    // Get Stripe secret from environment
+    // Obter chave do Stripe do ambiente
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (!stripeKey) {
       logStep("ERROR: Missing Stripe secret key");
       throw new Error("STRIPE_SECRET_KEY is not set");
     }
 
-    // Initialize Supabase client
+    // Inicializar o cliente Supabase
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_ANON_KEY") ?? ""
     );
     logStep("Supabase client initialized");
 
-    // Get authorization header
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      logStep("ERROR: No authorization header");
-      throw new Error("No authorization header provided");
-    }
-
-    // Authenticate user
-    const token = authHeader.replace("Bearer ", "");
-    const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
-    
-    if (userError) {
-      logStep("ERROR: Authentication error", { message: userError.message });
-      throw new Error(`Authentication error: ${userError.message}`);
+    // Verificar se há dados no corpo da requisição
+    let requestData;
+    try {
+      requestData = await req.json();
+      logStep("Request data parsed", requestData);
+    } catch (jsonError) {
+      // Se não conseguir fazer parse do corpo, isso é OK para verificações GET
+      requestData = {};
+      logStep("No JSON body or parse error (GET request likely)");
     }
     
-    const user = userData.user;
-    if (!user?.email) {
-      logStep("ERROR: User not authenticated or email not available");
-      throw new Error("User not authenticated or email not available");
+    const { userId } = requestData;
+
+    if (!userId) {
+      logStep("ERROR: Missing user ID");
+      return new Response(
+        JSON.stringify({ error: "User ID is required" }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
     }
     
-    logStep("User authenticated", { userId: user.id, email: user.email });
-
-    // Initialize Stripe
-    const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
-    logStep("Stripe initialized");
-
-    // Try to get an existing subscription from the database first
-    logStep("Checking user profile for subscription data");
+    logStep("Checking subscription for user", { userId });
     
-    // Get the user profile which might contain plan information
-    const { data: userProfile, error: profileError } = await supabaseClient
+    // Use service role para acessar o banco de dados diretamente
+    const supabaseAdmin = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      { auth: { persistSession: false } }
+    );
+    
+    // Obter o perfil do usuário que pode conter informações do plano
+    const { data: userProfile, error: profileError } = await supabaseAdmin
       .from('user_profiles')
-      .select('plano')
-      .eq('id', user.id)
+      .select('plano, email')
+      .eq('id', userId)
       .single();
     
     if (profileError) {
       logStep("Failed to get user profile", { error: profileError.message });
+      return new Response(
+        JSON.stringify({ error: `Failed to get user profile: ${profileError.message}` }),
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
     }
     
-    // Get the plan from user profile
+    if (!userProfile) {
+      logStep("User profile not found", { userId });
+      return new Response(
+        JSON.stringify({ error: "User profile not found" }),
+        { 
+          status: 404, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
+    }
+    
+    // Obter o plano do perfil do usuário
     const plano = userProfile?.plano || null;
     const isSubscribed = plano !== null && plano !== 'free';
     
-    // For demonstration purposes, calculate an end date based on plan
+    // Para fins de demonstração, calcular uma data de término com base no plano
     let subscriptionEnd = null;
     if (isSubscribed) {
       const endDate = new Date();

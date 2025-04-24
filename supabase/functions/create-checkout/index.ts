@@ -8,81 +8,47 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Configuração da função de log para melhorar a depuração
 const logStep = (step: string, details?: any) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
   console.log(`[CREATE-CHECKOUT] ${step}${detailsStr}`);
 };
 
 serve(async (req) => {
-  // Handle CORS preflight requests
+  // Lidando com requisições OPTIONS (CORS preflight)
   if (req.method === "OPTIONS") {
+    logStep("CORS preflight request");
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
     logStep("Function started");
 
-    // Get Stripe secret from environment variable (properly set in Supabase)
+    // Obtendo a chave secreta do Stripe do ambiente
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (!stripeKey) {
       logStep("ERROR: Missing Stripe secret key");
-      throw new Error("STRIPE_SECRET_KEY is not set in environment variables");
+      return new Response(
+        JSON.stringify({ error: "STRIPE_SECRET_KEY is not set in environment variables" }),
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
     }
 
-    // Initialize Stripe
+    // Inicializando o cliente Stripe
     const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
     logStep("Stripe initialized");
 
-    // Initialize Supabase client
+    // Inicializando o cliente Supabase
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_ANON_KEY") ?? ""
     );
     logStep("Supabase client initialized");
     
-    // Get authorization header
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      logStep("ERROR: No authorization header");
-      return new Response(
-        JSON.stringify({ error: "No authorization header provided" }),
-        { 
-          status: 401, 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
-        }
-      );
-    }
-    
-    // Authenticate user
-    const token = authHeader.replace("Bearer ", "");
-    const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
-    
-    if (userError) {
-      logStep("ERROR: Authentication error", { message: userError.message });
-      return new Response(
-        JSON.stringify({ error: `Authentication error: ${userError.message}` }),
-        { 
-          status: 401, 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
-        }
-      );
-    }
-    
-    const user = userData.user;
-    if (!user) {
-      logStep("ERROR: User not authenticated");
-      return new Response(
-        JSON.stringify({ error: "User not authenticated" }),
-        { 
-          status: 401, 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
-        }
-      );
-    }
-    
-    logStep("User authenticated", { userId: user.id });
-
-    // Get request data
+    // Verifica se a requisição tem corpo JSON
     let requestData;
     try {
       requestData = await req.json();
@@ -98,8 +64,8 @@ serve(async (req) => {
       );
     }
     
-    const { planId } = requestData;
-    logStep("Received request data", { planId });
+    const { planId, userId } = requestData;
+    logStep("Received request data", { planId, userId });
 
     if (!planId) {
       logStep("ERROR: Missing plan ID");
@@ -112,26 +78,32 @@ serve(async (req) => {
       );
     }
 
-    // For free plan, handle it directly
+    // Para plano gratuito, tratar diretamente
     if (planId === 'free') {
       logStep("Processing free plan");
       
-      // Use service role key for admin access to update user profile
+      // Usar role de serviço para acesso admin e atualizar perfil do usuário
       const supabaseAdmin = createClient(
         Deno.env.get("SUPABASE_URL") ?? "",
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
         { auth: { persistSession: false } }
       );
       
-      // Update user profile with free plan
+      // Atualizar perfil do usuário com plano gratuito
       const { error: updateError } = await supabaseAdmin
         .from('user_profiles')
-        .update({ plan: 'free' })
-        .eq('id', user.id);
+        .update({ plano: 'free' })
+        .eq('id', userId);
       
       if (updateError) {
         logStep("ERROR: Failed to update user profile", { error: updateError.message });
-        throw new Error(`Failed to update user profile: ${updateError.message}`);
+        return new Response(
+          JSON.stringify({ error: `Failed to update user profile: ${updateError.message}` }),
+          { 
+            status: 500, 
+            headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          }
+        );
       }
       
       logStep("Free plan activated successfully");
@@ -141,10 +113,10 @@ serve(async (req) => {
       });
     }
 
-    // For paid plans, create a Stripe checkout session
+    // Para planos pagos, criar uma sessão de checkout do Stripe
     logStep("Creating Stripe checkout session for plan", { planId });
     
-    // Define prices based on plan - using the correct price IDs
+    // Definir preços com base no plano - usando os IDs de preço corretos
     const prices = {
       'monthly': 'price_1RHSBjF8ZVI3gHwEhAFQHohQ',      // Mensal - R$ 47,00
       'semi_annual': 'price_1RHSCpF8ZVI3gHwEvCvRPy3w',  // Semestral - R$ 145,00
@@ -162,12 +134,36 @@ serve(async (req) => {
         }
       );
     }
+
+    // Buscar informações do usuário no Supabase
+    const { data: userData, error: userError } = await supabaseClient
+      .from('user_profiles')
+      .select('id, email')
+      .eq('id', userId)
+      .single();
+
+    if (userError || !userData) {
+      logStep("ERROR: Could not find user", { error: userError?.message, userId });
+      return new Response(
+        JSON.stringify({ error: `User not found: ${userError?.message || 'Unknown error'}` }),
+        { 
+          status: 404, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
+    }
     
-    // Check if user already exists as a Stripe customer
+    // Verificar se o usuário já existe como cliente no Stripe
     let customerId;
     try {
+      const email = userData.email;
+      if (!email) {
+        throw new Error("User email not found");
+      }
+
+      logStep("Checking if user exists as Stripe customer", { email });
       const customers = await stripe.customers.list({ 
-        email: user.email,
+        email: email,
         limit: 1
       });
       
@@ -175,11 +171,11 @@ serve(async (req) => {
         customerId = customers.data[0].id;
         logStep("Found existing Stripe customer", { customerId });
       } else {
-        // Create a new Stripe customer
+        // Criar um novo cliente no Stripe
         const newCustomer = await stripe.customers.create({
-          email: user.email,
+          email: email,
           metadata: {
-            userId: user.id
+            userId: userId
           }
         });
         customerId = newCustomer.id;
@@ -196,7 +192,7 @@ serve(async (req) => {
       );
     }
     
-    // Create the checkout session
+    // Criar a sessão de checkout
     try {
       const origin = req.headers.get('origin') || 'http://localhost:5173';
       logStep("Creating checkout session with origin", { origin });
@@ -214,19 +210,19 @@ serve(async (req) => {
         success_url: `${origin}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${origin}/plans`,
         metadata: {
-          userId: user.id,
+          userId: userId,
           planId: planId
         }
       });
       
       logStep("Checkout session created", { sessionId: session.id, url: session.url });
       
-      // Return the checkout URL
+      // Retornar a URL de checkout
       return new Response(JSON.stringify({ url: session.url }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
       });
-    } catch (checkoutError) {
+    } catch (checkoutError: any) {
       logStep("ERROR: Failed to create checkout session", { error: String(checkoutError) });
       return new Response(
         JSON.stringify({ error: `Failed to create checkout session: ${String(checkoutError)}` }),
@@ -240,7 +236,7 @@ serve(async (req) => {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logStep("FATAL ERROR in create-checkout", { message: errorMessage });
     
-    // Return a proper error response
+    // Retornar uma resposta de erro adequada
     return new Response(JSON.stringify({ error: errorMessage }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
