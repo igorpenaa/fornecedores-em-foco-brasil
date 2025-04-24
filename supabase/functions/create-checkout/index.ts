@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import Stripe from "https://esm.sh/stripe@14.21.0";
@@ -12,6 +11,13 @@ const corsHeaders = {
 const logStep = (step: string, details?: any) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
   console.log(`[CREATE-CHECKOUT] ${step}${detailsStr}`);
+};
+
+// Mapeamento de planos para price IDs do Stripe
+const PLAN_PRICE_MAP: { [key: string]: string } = {
+  'monthly': 'price_1RHSBjF8ZVI3gHwEhAFQHohQ', // Substitua pelo seu price_id mensal
+  'semi_annual': 'price_1RHSCpF8ZVI3gHwEvCvRPy3w', // Substitua pelo seu price_id semestral
+  'annual': 'price_1RHSCpF8ZVI3gHwEDBNsrmXI' // Substitua pelo seu price_id anual
 };
 
 serve(async (req) => {
@@ -107,10 +113,12 @@ serve(async (req) => {
     const { planId, userId } = requestData;
     logStep("Received request data", { planId, userId });
 
-    if (!planId) {
-      logStep("ERROR: Missing plan ID");
+    // Validar e obter o price ID do Stripe
+    const priceId = PLAN_PRICE_MAP[planId];
+    if (!priceId) {
+      logStep("ERROR: Invalid plan ID", { planId });
       return new Response(
-        JSON.stringify({ error: "Plan ID is required" }),
+        JSON.stringify({ error: "Invalid plan ID" }),
         { 
           status: 400, 
           headers: { ...corsHeaders, "Content-Type": "application/json" } 
@@ -209,25 +217,6 @@ serve(async (req) => {
     // Para planos pagos, criar uma sessão de checkout do Stripe
     logStep("Creating Stripe checkout session for plan", { planId });
     
-    // Definir preços com base no plano - usando os IDs de preço corretos
-    const prices = {
-      'monthly': 'price_1RHSBjF8ZVI3gHwEhAFQHohQ',      // Mensal - R$ 47,00
-      'semi_annual': 'price_1RHSCpF8ZVI3gHwEvCvRPy3w',  // Semestral - R$ 145,00
-      'annual': 'price_1RHSCpF8ZVI3gHwEDBNsrmXI'        // Anual - R$ 193,00
-    };
-    
-    const priceId = prices[planId as keyof typeof prices];
-    if (!priceId) {
-      logStep("ERROR: Invalid plan ID");
-      return new Response(
-        JSON.stringify({ error: `Invalid plan ID: ${planId}` }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
-        }
-      );
-    }
-
     // IMPORTANTE: Corrigido para trabalhar com Firebase ID
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
