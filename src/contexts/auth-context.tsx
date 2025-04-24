@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { User, UserRole, GeniusStatus } from '@/types';
 import { auth, db } from '@/lib/firebase';
@@ -81,7 +82,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setIsAuthenticated(true);
           
           const subStatus = await stripeService.checkSubscription(authUser.uid);
-          setSubscription(subStatus);
+          
+          // Create proper UserSubscription object from the response
+          if (subStatus.subscribed) {
+            const now = new Date();
+            const endDate = subStatus.subscriptionEnd ? new Date(subStatus.subscriptionEnd) : new Date();
+            
+            setSubscription({
+              userId: authUser.uid,
+              planType: subStatus.planType || 'free',
+              status: 'active',
+              startDate: now,
+              endDate: endDate,
+              selectedCategories: []
+            });
+          } else {
+            setSubscription(null);
+          }
+          
         } catch (error) {
           console.error("Erro ao buscar dados do usuário:", error);
           setIsAuthenticated(false);
@@ -280,7 +298,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
   
   const refreshSubscription = async (): Promise<UserSubscription | null> => {
-    return null;
+    if (!user) return null;
+    
+    try {
+      const subStatus = await stripeService.checkSubscription(user.id);
+      
+      if (subStatus.subscribed && subStatus.planType) {
+        const now = new Date();
+        const endDate = subStatus.subscriptionEnd ? new Date(subStatus.subscriptionEnd) : new Date();
+        
+        const updatedSubscription: UserSubscription = {
+          userId: user.id,
+          planType: subStatus.planType,
+          status: 'active',
+          startDate: now,
+          endDate: endDate,
+          selectedCategories: subscription?.selectedCategories || []
+        };
+        
+        setSubscription(updatedSubscription);
+        return updatedSubscription;
+      } else {
+        setSubscription(null);
+        return null;
+      }
+    } catch (error) {
+      console.error('Erro ao atualizar assinatura:', error);
+      return subscription;
+    }
   };
   
   const hasAccessToCategory = async (categoryId: string): Promise<boolean> => {
