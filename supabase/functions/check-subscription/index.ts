@@ -37,10 +37,22 @@ serve(async (req) => {
     );
     logStep("Supabase client initialized");
 
-    // CORREÇÃO: Processar o body da requisição corretamente
+    // CORREÇÃO: Processar o body da requisição com tratamento de erro robusto
     let requestData;
     try {
-      // Correção importante: verificar se o body está vazio antes de tentar fazer o parse
+      // Verificar se o body está vazio ou é nulo antes de fazer parsing
+      if (!req.body) {
+        logStep("ERROR: Request body is null");
+        return new Response(
+          JSON.stringify({ error: "Request body is required" }),
+          { 
+            status: 400, 
+            headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          }
+        );
+      }
+
+      // Tentar ler o corpo da requisição como texto
       const bodyText = await req.text();
       logStep("Request body received", { bodyText });
       
@@ -55,12 +67,24 @@ serve(async (req) => {
         );
       }
       
-      requestData = JSON.parse(bodyText);
-      logStep("Request data parsed", requestData);
-    } catch (jsonError) {
-      logStep("JSON parse error", { error: String(jsonError) });
+      // Tentar fazer parsing do JSON
+      try {
+        requestData = JSON.parse(bodyText);
+        logStep("Request data parsed", requestData);
+      } catch (jsonError) {
+        logStep("JSON parse error", { error: String(jsonError) });
+        return new Response(
+          JSON.stringify({ error: "Invalid JSON in request body" }),
+          { 
+            status: 400, 
+            headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          }
+        );
+      }
+    } catch (bodyError) {
+      logStep("ERROR: Failed to read request body", { error: String(bodyError) });
       return new Response(
-        JSON.stringify({ error: "Invalid JSON in request body" }),
+        JSON.stringify({ error: "Failed to read request body" }),
         { 
           status: 400, 
           headers: { ...corsHeaders, "Content-Type": "application/json" } 
@@ -68,6 +92,7 @@ serve(async (req) => {
       );
     }
     
+    // Verificar se userId está presente
     const { userId } = requestData;
 
     if (!userId) {

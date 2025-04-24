@@ -5,6 +5,7 @@ import { freeSubscriptionService } from "./free-subscription-service";
 import { paidSubscriptionService } from "./paid-subscription-service";
 import { subscriptionManagementService } from "./subscription-management-service";
 import { PlanType } from "./types";
+import { FunctionsHttpError } from '@supabase/supabase-js';
 
 class StripeService {
   getAvailablePlans = getAvailablePlans;
@@ -21,24 +22,33 @@ class StripeService {
       console.log("Criando sessão de checkout para o plano:", planId, "userId:", userId);
       
       try {
-        // Validar entradas para evitar problemas de JSON
+        // Validar entradas
         if (!planId || !userId) {
           throw new Error("ID do plano e ID do usuário são obrigatórios");
         }
 
-        // CORREÇÃO: Garantir que o body seja enviado corretamente como objeto, não como string
+        // CORREÇÃO: Enviar dados no formato correto para a função Edge
         const { data, error } = await supabase.functions.invoke('create-checkout', {
-          body: { planId, userId }, // Objeto literal direto - Supabase faz a serialização correta
-          headers: {
-            "Content-Type": "application/json"
-          }
+          body: { planId, userId } 
         });
 
         console.log("Resposta do checkout:", { data, error });
 
         if (error) {
-          console.error("Erro durante o checkout:", error);
-          throw new Error(error.message || "Falha ao criar sessão de checkout");
+          // Tratamento específico para erros de função HTTP
+          if (error instanceof FunctionsHttpError) {
+            try {
+              const errorMessage = await error.context.json();
+              console.error("Erro detalhado na função de checkout:", errorMessage);
+              throw new Error(errorMessage.error || "Erro no servidor durante checkout");
+            } catch (jsonError) {
+              console.error("Erro ao processar resposta de erro:", error.message);
+              throw new Error(`Erro no checkout: ${error.message}`);
+            }
+          } else {
+            console.error("Erro durante o checkout:", error);
+            throw new Error(error.message || "Falha ao criar sessão de checkout");
+          }
         }
         
         if (!data?.url) {
@@ -71,19 +81,28 @@ class StripeService {
       }
 
       try {
-        // CORREÇÃO: Garantir que o body seja enviado corretamente como objeto, não como string
+        // CORREÇÃO: Enviar dados no formato correto para a função Edge
         const { data, error } = await supabase.functions.invoke('check-subscription', {
-          body: { userId }, // Objeto literal direto - Supabase faz a serialização correta
-          headers: {
-            "Content-Type": "application/json"
-          }
+          body: { userId }
         });
 
         console.log("Resposta da verificação de assinatura:", { data, error });
 
         if (error) {
-          console.error("Erro ao verificar assinatura:", error);
-          throw error;
+          // Tratamento específico para erros de função HTTP
+          if (error instanceof FunctionsHttpError) {
+            try {
+              const errorMessage = await error.context.json();
+              console.error("Erro detalhado na função de verificação:", errorMessage);
+              throw new Error(errorMessage.error || "Erro no servidor durante verificação");
+            } catch (jsonError) {
+              console.error("Erro ao processar resposta de erro:", error.message);
+              throw new Error(`Erro na verificação: ${error.message}`);
+            }
+          } else {
+            console.error("Erro ao verificar assinatura:", error);
+            throw error;
+          }
         }
         
         return {
