@@ -37,11 +37,25 @@ serve(async (req) => {
     );
     logStep("Supabase client initialized");
 
-    // Processar o body da requisição
+    // CORREÇÃO: Processar o body da requisição corretamente
     let requestData;
     try {
-      // Correção importante: utilizar corretamente o body do request
-      requestData = await req.json();
+      // Correção importante: verificar se o body está vazio antes de tentar fazer o parse
+      const bodyText = await req.text();
+      logStep("Request body received", { bodyText });
+      
+      if (!bodyText || bodyText.trim() === '') {
+        logStep("ERROR: Empty request body");
+        return new Response(
+          JSON.stringify({ error: "Empty request body" }),
+          { 
+            status: 400, 
+            headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          }
+        );
+      }
+      
+      requestData = JSON.parse(bodyText);
       logStep("Request data parsed", requestData);
     } catch (jsonError) {
       logStep("JSON parse error", { error: String(jsonError) });

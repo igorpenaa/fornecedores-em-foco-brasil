@@ -61,7 +61,11 @@ export function PlanSelectionDialog({ open, onOpenChange }: PlanSelectionDialogP
         return;
       }
 
-      // Passar o ID do usuário explicitamente
+      // CORREÇÃO: Garantir que o userId está sendo passado explicitamente
+      if (!user.id) {
+        throw new Error("ID de usuário não disponível");
+      }
+      
       const checkoutUrl = await stripeService.createCheckoutSession(validPlanId, user.id);
       console.log("URL de checkout recebida:", checkoutUrl);
       

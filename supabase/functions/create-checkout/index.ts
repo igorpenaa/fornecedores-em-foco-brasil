@@ -8,14 +8,14 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Configuração da função de log para melhorar a depuração
+// Função de log para depuração aprimorada
 const logStep = (step: string, details?: any) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
   console.log(`[CREATE-CHECKOUT] ${step}${detailsStr}`);
 };
 
 serve(async (req) => {
-  // Lidando com requisições OPTIONS (CORS preflight)
+  // Lidar com requisições OPTIONS (CORS preflight)
   if (req.method === "OPTIONS") {
     logStep("CORS preflight request");
     return new Response(null, { headers: corsHeaders });
@@ -24,7 +24,7 @@ serve(async (req) => {
   try {
     logStep("Function started");
 
-    // Obtendo a chave secreta do Stripe do ambiente
+    // Obter chave do Stripe do ambiente
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (!stripeKey) {
       logStep("ERROR: Missing Stripe secret key");
@@ -52,8 +52,22 @@ serve(async (req) => {
     let requestData;
     
     try {
-      // Correção importante: utilizar corretamente o body do request
-      requestData = await req.json();
+      // CORREÇÃO: Verificar se o body está vazio antes de tentar fazer o parse
+      const bodyText = await req.text();
+      logStep("Request body received", { bodyText });
+      
+      if (!bodyText || bodyText.trim() === '') {
+        logStep("ERROR: Empty request body");
+        return new Response(
+          JSON.stringify({ error: "Empty request body" }),
+          { 
+            status: 400, 
+            headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          }
+        );
+      }
+      
+      requestData = JSON.parse(bodyText);
       logStep("Request data parsed", requestData);
     } catch (jsonError) {
       logStep("ERROR: Invalid JSON in request body", { error: String(jsonError) });

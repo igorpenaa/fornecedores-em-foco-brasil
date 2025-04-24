@@ -22,7 +22,7 @@ export default function PlansPage() {
   const plans = stripeService.getAvailablePlans();
 
   useEffect(() => {
-    console.log("PlansPage - user role:", user?.role);
+    console.log("PlansPage - user:", user);
     if (user && (user.role === "admin" || user.role === "master")) {
       console.log("Redirecionando admin/master para dashboard");
       navigate("/dashboard");
@@ -63,7 +63,11 @@ export default function PlansPage() {
         return;
       }
       
-      // Passar o ID do usuário explicitamente
+      // CORREÇÃO: Garantir que o userId está sendo passado explicitamente
+      if (!user.id) {
+        throw new Error("ID de usuário não disponível");
+      }
+      
       const checkoutUrl = await stripeService.createCheckoutSession(validPlanId, user.id);
       console.log("URL de checkout recebida:", checkoutUrl);
       

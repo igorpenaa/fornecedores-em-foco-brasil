@@ -26,9 +26,9 @@ class StripeService {
           throw new Error("ID do plano e ID do usuário são obrigatórios");
         }
 
-        // Correção importante: estruturar o body corretamente de acordo com a documentação do Supabase
+        // CORREÇÃO: Garantir que o body seja enviado corretamente como objeto, não como string
         const { data, error } = await supabase.functions.invoke('create-checkout', {
-          body: { planId, userId },
+          body: { planId, userId }, // Objeto literal direto - Supabase faz a serialização correta
           headers: {
             "Content-Type": "application/json"
           }
@@ -71,9 +71,9 @@ class StripeService {
       }
 
       try {
-        // Correção importante: estruturar o body corretamente de acordo com a documentação do Supabase
+        // CORREÇÃO: Garantir que o body seja enviado corretamente como objeto, não como string
         const { data, error } = await supabase.functions.invoke('check-subscription', {
-          body: { userId },
+          body: { userId }, // Objeto literal direto - Supabase faz a serialização correta
           headers: {
             "Content-Type": "application/json"
           }
