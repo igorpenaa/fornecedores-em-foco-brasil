@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/auth-context";
@@ -25,9 +26,8 @@ export default function Dashboard() {
     if (sessionId) {
       toast({
         title: "Assinatura ativada!",
-        description: "Sua assinatura foi ativada com sucesso.",
+        description: "Sua assinatura foi ativada com sucesso."
       });
-      
       // Remove the session_id from the URL
       const newURL = window.location.pathname;
       window.history.replaceState({}, '', newURL);
@@ -38,31 +38,28 @@ export default function Dashboard() {
   useEffect(() => {
     // Se o usuário fechou o diálogo manualmente, não reabra
     if (userClosedDialog) return;
-    
+
     // Evitar múltiplas execuções do efeito no mesmo ciclo de vida
     if (effectExecuted.current) return;
-    
+
     // Verificar se o diálogo deve ser mostrado
-    const shouldShowDialog = 
-      isFirstAccess || 
-      (location.state && location.state.showPlanDialog);
-      
+    const shouldShowDialog = isFirstAccess || (location.state && location.state.showPlanDialog);
     if (shouldShowDialog) {
       setIsOpen(true);
       effectExecuted.current = true;
-      
+
       // Se for o primeiro acesso e o usuário tiver um ID, marque como concluído
       if (isFirstAccess && user?.id) {
         markFirstAccessCompleted(user.id);
       }
     }
-    
+
     // Limpar o state para evitar que ele persista após navegação
     if (location.state?.showPlanDialog) {
       window.history.replaceState({}, document.title);
     }
   }, [isFirstAccess, user?.id, markFirstAccessCompleted, setIsOpen, location.state, userClosedDialog]);
-  
+
   // Resetar o state de userClosed ao desmontar o componente
   useEffect(() => {
     return () => {
@@ -74,15 +71,21 @@ export default function Dashboard() {
   return (
     <AppLayout title="Dashboard" subtitle="Bem-vindo ao Fornecedores">
       <div className="mb-8">
-        <HighlightsCarousel onUpgradeRequired={() => setIsOpen(true)} disabled={!canAccessFeatures} />
+        <HighlightsCarousel 
+          onUpgradeRequired={() => setIsOpen(true)}
+          disabled={!canAccessFeatures}
+        />
       </div>
-      
+
       <div className="mb-10">
         <AdsDisplay />
       </div>
-      
+
       <div>
-        <ProductsShowcase onUpgradeRequired={() => setIsOpen(true)} disabled={!canAccessFeatures} />
+        <ProductsShowcase 
+          onUpgradeRequired={() => setIsOpen(true)}
+          disabled={!canAccessFeatures}
+        />
       </div>
 
       <SharedPlanDialog />

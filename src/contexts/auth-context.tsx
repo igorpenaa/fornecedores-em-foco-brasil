@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { User, UserRole, GeniusStatus } from '@/types';
 import { auth, db } from '@/lib/firebase';
@@ -81,22 +80,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setUser(userDoc);
           setIsAuthenticated(true);
           
-          const subStatus = await stripeService.checkSubscription(authUser.uid);
-          
-          // Create proper UserSubscription object from the response
-          if (subStatus.subscribed) {
-            const now = new Date();
-            const endDate = subStatus.subscriptionEnd ? new Date(subStatus.subscriptionEnd) : new Date();
+          try {
+            const subStatus = await stripeService.checkSubscription(authUser.uid);
             
-            setSubscription({
-              userId: authUser.uid,
-              planType: subStatus.planType || 'free',
-              status: 'active',
-              startDate: now,
-              endDate: endDate,
-              selectedCategories: []
-            });
-          } else {
+            // Create proper UserSubscription object from the response
+            if (subStatus.subscribed) {
+              const now = new Date();
+              const endDate = subStatus.subscriptionEnd ? new Date(subStatus.subscriptionEnd) : new Date();
+              
+              setSubscription({
+                userId: authUser.uid,
+                planType: subStatus.planType || 'free',
+                status: 'active',
+                startDate: now,
+                endDate: endDate,
+                selectedCategories: []
+              });
+            } else {
+              setSubscription(null);
+            }
+          } catch (subscriptionError) {
+            console.error("Error checking subscription:", subscriptionError);
+            // Don't let subscription errors prevent authentication
             setSubscription(null);
           }
           
@@ -156,12 +161,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await authService.logout();
       setUser(null);
       setIsAuthenticated(false);
-      
-      toast({
-        title: "Erro ao fazer logout",
-        description: "Não foi possível fazer logout",
-        variant: "destructive",
-      });
+      setSubscription(null);
     } catch (error) {
       console.error("Erro ao fazer logout:", error);
       toast({

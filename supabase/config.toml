@@ -1,1 +1,28 @@
+
+# This is the project ID for your Supabase project
 project_id = "yrwqixzprldwxjpplxoq"
+
+# Set this to the current major version of Supabase CLI you're using
+version = 1
+
+[api]
+# Port used to serve the API and Supabase Studio
+port = 54321
+# Additional headers to add to the swagger documentation site
+swagger_ui_headers = {}
+
+[db]
+# Port used to connect to the database
+port = 54322
+
+[[db.migrations]]
+# Directory path to migration files
+migration_directory_path = "supabase/migrations"
+migrations = []
+
+[functions]
+[functions.check-subscription]
+verify_jwt = true
+
+[functions.create-checkout]
+verify_jwt = true

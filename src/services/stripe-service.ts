@@ -118,13 +118,23 @@ class StripeService {
         return '/dashboard';
       }
 
-      // For paid plans, create Stripe checkout session
+      console.log("Creating checkout session for plan:", planId);
+      
+      // For paid plans, call Supabase edge function
       const { data, error } = await supabase.functions.invoke('create-checkout', {
         body: { planId }
       });
 
-      if (error) throw new Error(error.message);
-      if (!data?.url) throw new Error('No checkout URL returned');
+      console.log("Checkout response:", { data, error });
+
+      if (error) {
+        console.error("Error during checkout:", error);
+        throw new Error(error.message || "Failed to create checkout session");
+      }
+      
+      if (!data?.url) {
+        throw new Error('No checkout URL returned');
+      }
 
       return data.url;
     } catch (error) {
@@ -140,9 +150,17 @@ class StripeService {
     subscriptionEnd?: string;
   }> {
     try {
+      console.log("Checking subscription for user:", userId);
+      
       const { data, error } = await supabase.functions.invoke('check-subscription');
 
-      if (error) throw error;
+      console.log("Subscription check response:", { data, error });
+
+      if (error) {
+        console.error("Error checking subscription:", error);
+        throw error;
+      }
+      
       return {
         subscribed: data.subscribed,
         planType: data.plan_type,
@@ -150,7 +168,11 @@ class StripeService {
       };
     } catch (error) {
       console.error('Error checking subscription:', error);
-      throw error;
+      
+      // Return default values on error to prevent UI crashes
+      return {
+        subscribed: false
+      };
     }
   }
 

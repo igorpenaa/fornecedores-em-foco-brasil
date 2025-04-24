@@ -1,6 +1,5 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import Stripe from "https://esm.sh/stripe@14.21.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
@@ -8,111 +7,100 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Helper logging function for enhanced debugging
 const logStep = (step: string, details?: any) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
   console.log(`[CHECK-SUBSCRIPTION] ${step}${detailsStr}`);
 };
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
-    if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
+    logStep("Function started");
 
+    // Get authorization header
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) throw new Error("No authorization header provided");
+    logStep("Authorization header found");
+
+    // Initialize Supabase client with anon key
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-      { auth: { persistSession: false } }
+      Deno.env.get("SUPABASE_ANON_KEY") ?? ""
     );
 
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("No authorization header");
-
+    // Authenticate user
     const token = authHeader.replace("Bearer ", "");
     const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
-    if (userError) throw new Error(`Authentication error: ${userError.message}`);
-    const user = userData.user;
-    if (!user?.email) throw new Error("User not authenticated or email not available");
-
-    const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
-    const customers = await stripe.customers.list({ email: user.email, limit: 1 });
     
-    if (customers.data.length === 0) {
-      // Update user profile to free plan if no customer exists
-      await supabaseClient.from('user_profiles').update({
-        plan: 'free'
-      }).eq('id', user.id);
-
-      return new Response(JSON.stringify({ subscribed: false }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      });
+    if (userError) {
+      logStep("ERROR: Authentication error", { message: userError.message });
+      throw new Error(`Authentication error: ${userError.message}`);
     }
+    
+    const user = userData.user;
+    if (!user?.email) {
+      logStep("ERROR: User not authenticated or email not available");
+      throw new Error("User not authenticated or email not available");
+    }
+    
+    logStep("User authenticated", { userId: user.id, email: user.email });
 
-    const customerId = customers.data[0].id;
-    const subscriptions = await stripe.subscriptions.list({
-      customer: customerId,
-      status: "active",
-      limit: 1,
+    // For now, simulate getting subscription information from Firebase
+    // In a production environment, this would be replaced with calls to Stripe's API
+    
+    // Check if user has plan information (simulated logic)
+    const { data: userProfile, error: profileError } = await supabaseClient
+      .from('user_profiles')
+      .select('plano')
+      .eq('id', user.id)
+      .single();
+    
+    if (profileError) {
+      logStep("Failed to get user profile", { error: profileError.message });
+    }
+    
+    // Determine subscription status based on plan
+    const plano = userProfile?.plano || null;
+    const isSubscribed = plano !== null && plano !== 'free';
+    
+    // Calculate end date (for demonstration)
+    let subscriptionEnd = null;
+    if (isSubscribed) {
+      const endDate = new Date();
+      if (plano === 'monthly') {
+        endDate.setMonth(endDate.getMonth() + 1);
+      } else if (plano === 'semi_annual') {
+        endDate.setMonth(endDate.getMonth() + 6);
+      } else if (plano === 'annual') {
+        endDate.setFullYear(endDate.getFullYear() + 1);
+      }
+      subscriptionEnd = endDate.toISOString();
+    }
+    
+    logStep("Returning subscription status", { 
+      subscribed: isSubscribed, 
+      plan_type: plano,
+      subscription_end: subscriptionEnd 
     });
 
-    const hasActiveSub = subscriptions.data.length > 0;
-    let planType = 'free';
-    let subscriptionEnd = null;
-
-    if (hasActiveSub) {
-      const subscription = subscriptions.data[0];
-      subscriptionEnd = new Date(subscription.current_period_end * 1000).toISOString();
-      
-      // Determine plan type from price ID
-      const priceId = subscription.items.data[0].price.id;
-      switch (priceId) {
-        case 'price_1RDxMLF8ZVI3gHwE4BYIgzy1':
-          planType = 'monthly';
-          break;
-        case 'price_1RDxRCF8ZVI3gHwEhCAB049h':
-          planType = 'semi_annual';
-          break;
-        case 'price_1RDxRCF8ZVI3gHwEbf17KfeO':
-          planType = 'annual';
-          break;
-      }
-
-      // Update subscription in database
-      await supabaseClient.from('subscriptions').upsert({
-        user_id: user.id,
-        plan_type: planType,
-        status: 'active',
-        start_date: new Date(subscription.current_period_start * 1000).toISOString(),
-        end_date: subscriptionEnd,
-        stripe_customer_id: customerId,
-        stripe_subscription_id: subscription.id
-      }, { onConflict: 'user_id' });
-
-      // Update user profile
-      await supabaseClient.from('user_profiles').update({
-        plan: planType
-      }).eq('id', user.id);
-    } else {
-      // Update user profile to free plan if no active subscription
-      await supabaseClient.from('user_profiles').update({
-        plan: 'free'
-      }).eq('id', user.id);
-    }
-
     return new Response(JSON.stringify({
-      subscribed: hasActiveSub,
-      plan_type: planType,
+      subscribed: isSubscribed,
+      plan_type: plano,
       subscription_end: subscriptionEnd
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
+    
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
+    logStep("ERROR in check-subscription", { message: errorMessage });
+    
     return new Response(JSON.stringify({ error: errorMessage }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
