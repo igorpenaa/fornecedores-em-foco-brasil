@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import Stripe from "https://esm.sh/stripe@14.21.0";
@@ -29,6 +28,10 @@ serve(async (req) => {
       logStep("ERROR: Missing Stripe secret key");
       throw new Error("STRIPE_SECRET_KEY is not set");
     }
+
+    // Inicializar o cliente Stripe
+    const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
+    logStep("Stripe initialized");
 
     // Inicializar o cliente Supabase
     const supabaseClient = createClient(
@@ -115,11 +118,10 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
     
-    // Obter o perfil do usuário que pode conter informações do plano
-    // CORREÇÃO: Trabalhar com Firebase ID (não assumindo que é UUID)
+    // Obter o perfil do usuário que pode conter informações do cliente Stripe
     const { data: userProfile, error: profileError } = await supabaseAdmin
       .from('user_profiles')
-      .select('plan, email')
+      .select('stripe_customer_id, email')
       .eq('id', userId)
       .maybeSingle();
     
@@ -134,49 +136,72 @@ serve(async (req) => {
       );
     }
     
-    if (!userProfile) {
-      logStep("User profile not found", { userId });
+    if (!userProfile?.stripe_customer_id) {
+      logStep("No Stripe customer ID found", { userId });
       return new Response(
-        JSON.stringify({ error: "User profile not found" }),
+        JSON.stringify({ 
+          subscribed: false,
+          plan_type: 'free',
+          subscription_end: null
+        }),
         { 
-          status: 404, 
+          status: 200, 
           headers: { ...corsHeaders, "Content-Type": "application/json" } 
         }
       );
     }
-    
-    // Obter o plano do perfil do usuário
-    const plano = userProfile?.plan || null;
-    const isSubscribed = plano !== null && plano !== 'free';
-    
-    // Para fins de demonstração, calcular uma data de término com base no plano
-    let subscriptionEnd = null;
-    if (isSubscribed) {
-      const endDate = new Date();
-      if (plano === 'monthly') {
-        endDate.setMonth(endDate.getMonth() + 1);
-      } else if (plano === 'semi_annual') {
-        endDate.setMonth(endDate.getMonth() + 6);
-      } else if (plano === 'annual') {
-        endDate.setFullYear(endDate.getFullYear() + 1);
-      }
-      subscriptionEnd = endDate.toISOString();
-    }
-    
-    logStep("Returning subscription status", { 
-      subscribed: isSubscribed, 
-      plan_type: plano,
-      subscription_end: subscriptionEnd 
-    });
 
-    return new Response(JSON.stringify({
-      subscribed: isSubscribed,
-      plan_type: plano,
-      subscription_end: subscriptionEnd
-    }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 200,
-    });
+    try {
+      // Buscar assinaturas ativas do cliente no Stripe
+      const subscriptions = await stripe.subscriptions.list({
+        customer: userProfile.stripe_customer_id,
+        status: 'active',
+        limit: 1
+      });
+
+      if (subscriptions.data.length === 0) {
+        logStep("No active subscriptions found", { customerId: userProfile.stripe_customer_id });
+        return new Response(
+          JSON.stringify({ 
+            subscribed: false,
+            plan_type: 'free',
+            subscription_end: null
+          }),
+          { 
+            status: 200, 
+            headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          }
+        );
+      }
+
+      const subscription = subscriptions.data[0];
+      const planType = subscription.items.data[0].price.lookup_key || 'unknown';
+      
+      logStep("Active subscription found", { 
+        subscriptionId: subscription.id,
+        planType,
+        endDate: new Date(subscription.current_period_end * 1000).toISOString()
+      });
+
+      return new Response(JSON.stringify({
+        subscribed: true,
+        plan_type: planType,
+        subscription_end: new Date(subscription.current_period_end * 1000).toISOString()
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+      
+    } catch (stripeError) {
+      logStep("ERROR: Failed to check Stripe subscription", { error: String(stripeError) });
+      return new Response(
+        JSON.stringify({ error: `Failed to check subscription: ${String(stripeError)}` }),
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
+    }
     
   } catch (error: any) {
     const errorMessage = error instanceof Error ? error.message : String(error);
