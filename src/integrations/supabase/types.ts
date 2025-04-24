@@ -9,7 +9,266 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      categories: {
+        Row: {
+          created_at: string | null
+          id: string
+          image: string | null
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          image?: string | null
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          image?: string | null
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      highlights: {
+        Row: {
+          created_at: string | null
+          description: string
+          id: string
+          link: string | null
+          media_type: string
+          media_url: string
+          title: string
+          transition_delay: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          description: string
+          id?: string
+          link?: string | null
+          media_type: string
+          media_url: string
+          title: string
+          transition_delay?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string
+          id?: string
+          link?: string | null
+          media_type?: string
+          media_url?: string
+          title?: string
+          transition_delay?: number | null
+        }
+        Relationships: []
+      }
+      ratings: {
+        Row: {
+          comment: string | null
+          created_at: string | null
+          id: string
+          issues: Json | null
+          rating: number
+          supplier_id: string
+          user_id: string
+          user_name: string
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string | null
+          id?: string
+          issues?: Json | null
+          rating: number
+          supplier_id: string
+          user_id: string
+          user_name: string
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string | null
+          id?: string
+          issues?: Json | null
+          rating?: number
+          supplier_id?: string
+          user_id?: string
+          user_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ratings_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stripe_checkout_sessions: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          id: string
+          plan_id: string
+          price_id: string
+          session_id: string
+          status: string
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          id?: string
+          plan_id: string
+          price_id: string
+          session_id: string
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          id?: string
+          plan_id?: string
+          price_id?: string
+          session_id?: string
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      subscriptions: {
+        Row: {
+          created_at: string | null
+          end_date: string
+          id: string
+          plan_type: string
+          selected_categories: Json | null
+          start_date: string
+          status: string
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          end_date: string
+          id?: string
+          plan_type: string
+          selected_categories?: Json | null
+          start_date: string
+          status: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          end_date?: string
+          id?: string
+          plan_type?: string
+          selected_categories?: Json | null
+          start_date?: string
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      suppliers: {
+        Row: {
+          category_ids: Json
+          city: string
+          created_at: string | null
+          id: string
+          image: string | null
+          is_free_supplier: boolean | null
+          is_genius_student: boolean | null
+          name: string
+          phone: string
+          updated_at: string | null
+        }
+        Insert: {
+          category_ids?: Json
+          city: string
+          created_at?: string | null
+          id?: string
+          image?: string | null
+          is_free_supplier?: boolean | null
+          is_genius_student?: boolean | null
+          name: string
+          phone: string
+          updated_at?: string | null
+        }
+        Update: {
+          category_ids?: Json
+          city?: string
+          created_at?: string | null
+          id?: string
+          image?: string | null
+          is_free_supplier?: boolean | null
+          is_genius_student?: boolean | null
+          name?: string
+          phone?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      user_profiles: {
+        Row: {
+          created_at: string | null
+          email: string
+          favorites: Json | null
+          first_access_completed: boolean | null
+          genius_coupon: string | null
+          genius_status: string | null
+          id: string
+          name: string
+          plan: string | null
+          role: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          favorites?: Json | null
+          first_access_completed?: boolean | null
+          genius_coupon?: string | null
+          genius_status?: string | null
+          id: string
+          name: string
+          plan?: string | null
+          role: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          favorites?: Json | null
+          first_access_completed?: boolean | null
+          genius_coupon?: string | null
+          genius_status?: string | null
+          id?: string
+          name?: string
+          plan?: string | null
+          role?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

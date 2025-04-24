@@ -1,6 +1,7 @@
 import { auth, db } from "@/lib/firebase";
 import { collection, addDoc, getDoc, setDoc, doc, updateDoc, Timestamp } from "firebase/firestore";
 import { userService } from "./user-service";
+import { supabase } from "@/integrations/supabase/client";
 
 // IDs dos preços no Stripe
 const PRICE_IDS = {
@@ -108,81 +109,48 @@ class StripeService {
     ];
   }
 
-  // Criar sessão de checkout do Stripe - MODIFICADO para usar Firebase Functions
+  // Create checkout session for subscription
   async createCheckoutSession(planId: PlanType, userId: string): Promise<string> {
     try {
-      // O plano gratuito é tratado diretamente no frontend
+      // For free plan, register directly without Stripe checkout
       if (planId === 'free') {
         await this.registerFreeSubscription(userId);
         return '/dashboard';
       }
 
-      const plan = this.getAvailablePlans().find(p => p.id === planId);
-      if (!plan || !plan.priceId) {
-        throw new Error('Plano não encontrado ou inválido');
-      }
+      // For paid plans, create Stripe checkout session
+      const { data, error } = await supabase.functions.invoke('create-checkout', {
+        body: { planId }
+      });
 
-      // Verificar usuário para obter email
-      const userDoc = await getDoc(doc(db, 'users', userId));
-      if (!userDoc.exists()) {
-        throw new Error('Usuário não encontrado');
-      }
-      const userData = userDoc.data();
-      const userEmail = userData.email;
+      if (error) throw new Error(error.message);
+      if (!data?.url) throw new Error('No checkout URL returned');
 
-      console.log("Iniciando processo de checkout para:", { userId, planId, email: userEmail });
-
-      try {
-        // Temporariamente, como solução alternativa até as Cloud Functions estarem configuradas
-        // Isto simula o comportamento - na produção, você substituirá por chamadas reais às funções
-        
-        console.log("Redirecionando para simulação de pagamento");
-        
-        // Adicionar uma entrada de sessão temporária no Firestore
-        const sessionDocRef = await addDoc(collection(db, 'stripeCheckoutSessions'), {
-          userId,
-          planId,
-          priceId: plan.priceId,
-          sessionId: `sim_${Math.random().toString(36).substring(2, 15)}`,
-          status: 'pending',
-          createdAt: Timestamp.now()
-        });
-        
-        // Retornamos URL para a página de simulação
-        return `/payment-simulation?sessionId=${sessionDocRef.id}&planId=${planId}`;
-        
-        /* CÓDIGO PARA USAR QUANDO TIVER CONFIGURADO AS CLOUD FUNCTIONS
-        const response = await fetch(`${FIREBASE_FUNCTIONS_BASE_URL}/createStripeCheckout`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${await auth.currentUser?.getIdToken()}`
-          },
-          body: JSON.stringify({
-            planId,
-            priceId: plan.priceId,
-            userId,
-            userEmail,
-            successUrl: `${window.location.origin}/select-categories?plan=${planId}&session_id={CHECKOUT_SESSION_ID}`,
-            cancelUrl: `${window.location.origin}/plans`
-          })
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Erro ao criar sessão de checkout');
-        }
-
-        const data = await response.json();
-        return data.url;
-        */
-      } catch (error) {
-        console.error("Erro na chamada à função:", error);
-        throw new Error('Não foi possível iniciar o processo de pagamento. Verifique o console para detalhes.');
-      }
+      return data.url;
     } catch (error) {
-      console.error('Erro ao criar sessão de checkout:', error);
-      throw new Error('Não foi possível iniciar o processo de pagamento');
+      console.error('Error creating checkout session:', error);
+      throw error;
+    }
+  }
+
+  // Check subscription status
+  async checkSubscription(userId: string): Promise<{
+    subscribed: boolean;
+    planType?: PlanType;
+    subscriptionEnd?: string;
+  }> {
+    try {
+      const { data, error } = await supabase.functions.invoke('check-subscription');
+
+      if (error) throw error;
+      return {
+        subscribed: data.subscribed,
+        planType: data.plan_type,
+        subscriptionEnd: data.subscription_end
+      };
+    } catch (error) {
+      console.error('Error checking subscription:', error);
+      throw error;
     }
   }
 

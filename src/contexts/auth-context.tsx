@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { User, UserRole, GeniusStatus } from '@/types';
 import { auth, db } from '@/lib/firebase';
@@ -13,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { usePlanDialog } from '@/components/plans/shared-plan-dialog';
 import { authService } from '@/services/user-service';
 import { UserSubscription } from '@/services/stripe-service';
+import { stripeService } from '@/services/stripe-service';
 
 interface AuthContextProps {
   user: User | null;
@@ -58,7 +58,6 @@ const AuthContext = createContext<AuthContextProps>({
 
 export const useAuth = () => useContext(AuthContext);
 
-// Create a wrapper component that will provide the Router context for AuthProvider
 export const AuthProviderWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
     <>{children}</>
@@ -73,8 +72,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const { toast } = useToast();
   const { setIsOpen } = usePlanDialog();
 
-  // Remove the useNavigate hook here since it causes the Router context error
-
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (authUser) => {
       if (authUser) {
@@ -82,6 +79,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const userDoc = await authService.getUserById(authUser.uid);
           setUser(userDoc);
           setIsAuthenticated(true);
+          
+          const subStatus = await stripeService.checkSubscription(authUser.uid);
+          setSubscription(subStatus);
         } catch (error) {
           console.error("Erro ao buscar dados do usuário:", error);
           setIsAuthenticated(false);
@@ -89,6 +89,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } else {
         setUser(null);
         setIsAuthenticated(false);
+        setSubscription(null);
       }
       setIsLoading(false);
     });
@@ -138,7 +139,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(null);
       setIsAuthenticated(false);
       
-      // We'll handle navigation in the component that calls logout
+      toast({
+        title: "Erro ao fazer logout",
+        description: "Não foi possível fazer logout",
+        variant: "destructive",
+      });
     } catch (error) {
       console.error("Erro ao fazer logout:", error);
       toast({
@@ -156,24 +161,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const canAccessApp = (): boolean => {
     if (!user) return false;
     
-    // Admin e master tem acesso irrestrito
     if (user.role === "admin" || user.role === "master") {
       return true;
     }
     
-    // Se o usuário tem um plano (diferente de 'free'), permite o acesso
     return !!user.plano;
   };
   
   const canAccessGenius = (): boolean => {
     if (!user) return false;
     
-    // Admin e master têm acesso a tudo
     if (user.role === "admin" || user.role === "master") {
       return true;
     }
     
-    // Alunos Genius têm acesso se aprovados
     if (user.geniusCoupon === "ALUNOREDEGENIUS") {
       return user.geniusStatus === "approved";
     }
@@ -192,7 +193,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         description: "Faça login para adicionar aos favoritos",
         variant: "destructive",
       });
-      // Navigation will be handled by the component that calls this
       return;
     }
     
@@ -216,7 +216,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         description: "Faça login para atualizar seu perfil",
         variant: "destructive",
       });
-      // Navigation will be handled by the component that calls this
       return;
     }
     
@@ -237,7 +236,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Fix the updateGeniusStatus function to return Promise<void> to match the interface
   const updateGeniusStatus = async (userId: string, status: GeniusStatus): Promise<void> => {
     if (!user) {
       toast({
@@ -267,7 +265,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Adicionando uma flag para marcar o primeiro acesso
   const markFirstAccessCompleted = async (userId: string) => {
     try {
       await updateDoc(doc(db, 'users', userId), {
@@ -282,24 +279,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
   
-  // Placeholder para refreshSubscription
   const refreshSubscription = async (): Promise<UserSubscription | null> => {
-    // Implementation would go here in a real app
     return null;
   };
   
-  // Placeholder for hasAccessToCategory
   const hasAccessToCategory = async (categoryId: string): Promise<boolean> => {
     if (!user) return false;
     
-    // Admin/master tem acesso a tudo
     if (user.role === 'admin' || user.role === 'master') return true;
     
-    // Implementação completa seria feita aqui
     return false;
   };
 
-  // Modificando o contexto de autenticação para incluir verificação de primeiro acesso
   const contextValue = {
     user,
     isAuthenticated,

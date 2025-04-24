@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/auth-context";
@@ -7,14 +6,33 @@ import { HighlightsCarousel } from "@/components/dashboard/highlights-carousel";
 import { ProductsShowcase } from "@/components/dashboard/products-showcase";
 import { AdsDisplay } from "@/components/dashboard/ads-display";
 import { SharedPlanDialog, usePlanDialog } from "@/components/plans/shared-plan-dialog";
+import { useSearchParams } from "react-router-dom";
+import { useToast } from "@/components/toast";
 
 export default function Dashboard() {
   const { user, isFirstAccess, markFirstAccessCompleted } = useAuth();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { setIsOpen, userClosedDialog, resetUserClosed } = usePlanDialog();
   const effectExecuted = useRef(false);
+  const { toast } = useToast();
 
   const canAccessFeatures = user?.plano && ['monthly', 'semi_annual', 'annual'].includes(user.plano);
+
+  // Check for successful Stripe checkout
+  useEffect(() => {
+    const sessionId = searchParams.get('session_id');
+    if (sessionId) {
+      toast({
+        title: "Assinatura ativada!",
+        description: "Sua assinatura foi ativada com sucesso.",
+      });
+      
+      // Remove the session_id from the URL
+      const newURL = window.location.pathname;
+      window.history.replaceState({}, '', newURL);
+    }
+  }, [searchParams, toast]);
 
   // Efeito para controlar a abertura do diálogo de planos
   useEffect(() => {
