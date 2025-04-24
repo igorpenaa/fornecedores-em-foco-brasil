@@ -14,7 +14,7 @@ const logStep = (step: string, details?: any) => {
 };
 
 serve(async (req) => {
-  // Lidar com requisições OPTIONS (CORS preflight)
+  // Lidar com requisições OPTIONS ( CORS preflight )
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
