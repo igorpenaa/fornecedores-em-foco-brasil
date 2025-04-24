@@ -45,7 +45,7 @@ export function PlanSelectionDialog({ open, onOpenChange }: PlanSelectionDialogP
     setProcessingPlan(planId);
 
     try {
-      console.log(`Iniciando processo para plano: ${planId}`);
+      console.log(`Iniciando processo para plano: ${planId} para usuário: ${user.id}`);
       
       // Fechar o diálogo imediatamente para evitar problemas de estado
       onOpenChange(false);
@@ -61,7 +61,7 @@ export function PlanSelectionDialog({ open, onOpenChange }: PlanSelectionDialogP
         return;
       }
 
-      // Para planos pagos, redirecionar para o Stripe Checkout ou simulação
+      // Para planos pagos, redirecionar para o Stripe Checkout
       const checkoutUrl = await stripeService.createCheckoutSession(validPlanId, user.id);
       console.log("URL de checkout recebida:", checkoutUrl);
       

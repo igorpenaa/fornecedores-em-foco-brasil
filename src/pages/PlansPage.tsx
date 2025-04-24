@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/auth-context";
@@ -47,7 +48,7 @@ export default function PlansPage() {
     setProcessingPlan(planId);
 
     try {
-      console.log(`Iniciando processo para plano: ${planId}`);
+      console.log(`Iniciando processo para plano: ${planId} para usuário: ${user.id}`);
       
       if (validPlanId === 'free') {
         console.log("Atualizando usuário para plano free");

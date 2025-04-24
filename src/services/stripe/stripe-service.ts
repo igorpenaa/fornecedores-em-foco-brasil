@@ -12,41 +12,46 @@ class StripeService {
   // Create checkout session for subscription
   async createCheckoutSession(planId: PlanType, userId: string): Promise<string> {
     try {
-      // For free plan, register directly without Stripe checkout
+      // Para plano gratuito, registrar diretamente sem checkout do Stripe
       if (planId === 'free') {
         await this.registerFreeSubscription(userId);
         return '/dashboard';
       }
 
-      console.log("Creating checkout session for plan:", planId);
+      console.log("Criando sessão de checkout para o plano:", planId, "userId:", userId);
       
       try {
-        // For paid plans, call Supabase edge function with robust error handling
+        // Validar entradas para evitar problemas de JSON
+        if (!planId || !userId) {
+          throw new Error("ID do plano e ID do usuário são obrigatórios");
+        }
+
+        // Para planos pagos, chamar a função Edge do Supabase com tratamento de erro robusto
         const { data, error } = await supabase.functions.invoke('create-checkout', {
-          body: { planId, userId },
+          body: JSON.stringify({ planId, userId }), // Certifique-se de que o corpo seja uma string JSON válida
           headers: {
             "Content-Type": "application/json"
           }
         });
 
-        console.log("Checkout response:", { data, error });
+        console.log("Resposta do checkout:", { data, error });
 
         if (error) {
-          console.error("Error during checkout:", error);
-          throw new Error(error.message || "Failed to create checkout session");
+          console.error("Erro durante o checkout:", error);
+          throw new Error(error.message || "Falha ao criar sessão de checkout");
         }
         
         if (!data?.url) {
-          throw new Error('No checkout URL returned from the server');
+          throw new Error('Nenhuma URL de checkout retornada pelo servidor');
         }
 
         return data.url;
       } catch (error: any) {
-        console.error('Error calling create-checkout function:', error);
-        throw new Error(`Checkout error: ${error.message || "Unknown error"}`);
+        console.error('Erro ao chamar função create-checkout:', error);
+        throw new Error(`Erro no checkout: ${error.message || "Erro desconhecido"}`);
       }
     } catch (error: any) {
-      console.error('Error creating checkout session:', error);
+      console.error('Erro ao criar sessão de checkout:', error);
       throw error;
     }
   }
@@ -58,20 +63,25 @@ class StripeService {
     subscriptionEnd?: string;
   }> {
     try {
-      console.log("Checking subscription for user:", userId);
+      console.log("Verificando assinatura para usuário:", userId);
       
+      if (!userId) {
+        console.error("ID do usuário não fornecido para verificação de assinatura");
+        return { subscribed: false };
+      }
+
       try {
         const { data, error } = await supabase.functions.invoke('check-subscription', {
-          body: { userId },
+          body: JSON.stringify({ userId }), // Certifique-se de que o corpo seja uma string JSON válida
           headers: {
             "Content-Type": "application/json"
           }
         });
 
-        console.log("Subscription check response:", { data, error });
+        console.log("Resposta da verificação de assinatura:", { data, error });
 
         if (error) {
-          console.error("Error checking subscription:", error);
+          console.error("Erro ao verificar assinatura:", error);
           throw error;
         }
         
@@ -81,13 +91,13 @@ class StripeService {
           subscriptionEnd: data.subscription_end
         };
       } catch (error: any) {
-        console.error('Error calling check-subscription function:', error);
+        console.error('Erro ao chamar função check-subscription:', error);
         throw error;
       }
     } catch (error: any) {
-      console.error('Error checking subscription:', error);
+      console.error('Erro ao verificar assinatura:', error);
       
-      // Return default values on error to prevent UI crashes
+      // Retornar valores padrão em caso de erro para evitar falhas na UI
       return {
         subscribed: false
       };

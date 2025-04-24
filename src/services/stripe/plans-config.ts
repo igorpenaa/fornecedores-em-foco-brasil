@@ -25,7 +25,7 @@ export function getAvailablePlans(): Plan[] {
         'Visualização de destaques',
         'Suporte básico'
       ],
-      priceId: 'price_1RHSBjF8ZVI3gHwEhAFQHohQ',
+      priceId: 'price_1RHSBjF8ZVI3gHwEhAFQHohQ', // Mensal - R$ 47,00
       maxCategories: 10
     },
     {
@@ -40,7 +40,7 @@ export function getAvailablePlans(): Plan[] {
         'Suporte premium',
         'Filtros avançados'
       ],
-      priceId: 'price_1RHSCpF8ZVI3gHwEvCvRPy3w',
+      priceId: 'price_1RHSCpF8ZVI3gHwEvCvRPy3w', // Semestral - R$ 145,00
       savings: 'Economize R$ 137,00',
       maxCategories: 20,
       highlighted: true
@@ -59,7 +59,7 @@ export function getAvailablePlans(): Plan[] {
         'Link direto para WhatsApp',
         'Suporte prioritário'
       ],
-      priceId: 'price_1RHSCpF8ZVI3gHwEDBNsrmXI',
+      priceId: 'price_1RHSCpF8ZVI3gHwEDBNsrmXI', // Anual - R$ 193,00
       savings: 'Economize R$ 371,00',
       maxCategories: Infinity
     }

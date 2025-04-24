@@ -51,7 +51,14 @@ serve(async (req) => {
     // Verifica se a requisição tem corpo JSON
     let requestData;
     try {
-      requestData = await req.json();
+      const bodyText = await req.text();
+      logStep("Request body as text", { bodyText });
+      
+      if (!bodyText || bodyText.trim() === '') {
+        throw new Error("Empty request body");
+      }
+      
+      requestData = JSON.parse(bodyText);
       logStep("Request data parsed", requestData);
     } catch (jsonError) {
       logStep("ERROR: Invalid JSON in request body", { error: String(jsonError) });
@@ -71,6 +78,17 @@ serve(async (req) => {
       logStep("ERROR: Missing plan ID");
       return new Response(
         JSON.stringify({ error: "Plan ID is required" }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
+    }
+
+    if (!userId) {
+      logStep("ERROR: Missing user ID");
+      return new Response(
+        JSON.stringify({ error: "User ID is required" }),
         { 
           status: 400, 
           headers: { ...corsHeaders, "Content-Type": "application/json" } 
@@ -135,8 +153,14 @@ serve(async (req) => {
       );
     }
 
-    // Buscar informações do usuário no Supabase
-    const { data: userData, error: userError } = await supabaseClient
+    // Buscar informações do usuário no Supabase usando o userId fornecido
+    const supabaseAdmin = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      { auth: { persistSession: false } }
+    );
+    
+    const { data: userData, error: userError } = await supabaseAdmin
       .from('user_profiles')
       .select('id, email')
       .eq('id', userId)
@@ -153,14 +177,21 @@ serve(async (req) => {
       );
     }
     
+    if (!userData.email) {
+      logStep("ERROR: User email not found");
+      return new Response(
+        JSON.stringify({ error: "User email not found" }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
+    }
+
     // Verificar se o usuário já existe como cliente no Stripe
     let customerId;
     try {
       const email = userData.email;
-      if (!email) {
-        throw new Error("User email not found");
-      }
-
       logStep("Checking if user exists as Stripe customer", { email });
       const customers = await stripe.customers.list({ 
         email: email,
@@ -216,6 +247,18 @@ serve(async (req) => {
       });
       
       logStep("Checkout session created", { sessionId: session.id, url: session.url });
+      
+      // Registrar a sessão de checkout no banco de dados
+      await supabaseAdmin
+        .from('stripe_checkout_sessions')
+        .insert({
+          session_id: session.id,
+          user_id: userId,
+          plan_id: planId,
+          price_id: priceId,
+          status: 'pending',
+          created_at: new Date().toISOString()
+        });
       
       // Retornar a URL de checkout
       return new Response(JSON.stringify({ url: session.url }), {
